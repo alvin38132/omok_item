@@ -17,13 +17,14 @@ body {
   min-height: 100vh;
   color: var(--ink);
   background: radial-gradient(circle at 10% 10%, rgba(255, 90, 105, 0.12), transparent 27rem),
-              radial-gradient(circle at 90% 90%, rgba(75, 135, 255, 0.13), transparent 30rem),
-              #111319;
+    radial-gradient(circle at 90% 90%, rgba(75, 135, 255, 0.13), transparent 30rem),
+    #111319;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding: 22px;
 }
 
-button, input {
+button,
+input {
   font: inherit;
 }
 
@@ -35,7 +36,8 @@ button, input {
   gap: 22px;
 }
 
-.board-panel, .sidebar {
+.board-panel,
+.sidebar {
   border: 1px solid var(--line);
   background: rgba(28, 31, 39, 0.92);
   box-shadow: var(--shadow);
@@ -63,7 +65,9 @@ canvas.panning {
   cursor: grabbing;
 }
 
-canvas:focus-visible, button:focus-visible, input:focus-visible {
+canvas:focus-visible,
+button:focus-visible,
+input:focus-visible {
   outline: 3px solid #fff;
   outline-offset: 3px;
 }
@@ -111,7 +115,8 @@ h1 {
   background: var(--panel-2);
 }
 
-.turn-stone, .legend-stone {
+.turn-stone,
+.legend-stone {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -207,6 +212,67 @@ h1 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  max-height: 230px;
+  overflow-y: auto;
+  padding-right: 3px;
+  margin-bottom: 12px;
+}
+
+.item-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.item-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.item-btn.active {
+  background: var(--accent);
+  color: #13151b;
+  border-color: transparent;
+  box-shadow: 0 0 10px rgba(255, 107, 107, 0.4);
+}
+
+.item-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.item-name {
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.item-count {
+  font-size: 0.6rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.item-btn.active .item-count {
+  color: rgba(19, 21, 27, 0.8);
 }
 
 .meta {
@@ -363,7 +429,8 @@ dialog::backdrop {
   cursor: pointer;
 }
 
-.mode-toggle strong, .mode-toggle small {
+.mode-toggle strong,
+.mode-toggle small {
   display: block;
 }
 
@@ -392,13 +459,74 @@ dialog::backdrop {
   font-size: 0.72rem !important;
 }
 
-@keyframes shake {
-  25% { transform: translateX(-5px); }
-  60% { transform: translateX(4px); }
-  85% { transform: translateX(-2px); }
+/* Line Clear direction modal (React-rendered overlay). */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 9, 12, 0.7);
+  display: grid;
+  place-items: center;
+  z-index: 999;
+  backdrop-filter: blur(6px);
 }
 
-@media(max-width: 870px) {
+.modal-content {
+  background: #1c1f27;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 24px;
+  border-radius: 20px;
+  width: min(380px, 90%);
+  text-align: center;
+}
+
+.modal-content h3 {
+  margin: 0 0 10px;
+  font-family: Georgia, serif;
+  color: #fff;
+  font-size: 1.4rem;
+}
+
+.modal-content p {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0 0 20px;
+}
+
+.modal-choice {
+  width: 100%;
+  margin-bottom: 8px;
+  background: #252933;
+  color: #fff;
+  font-size: 0.85rem;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+.modal-cancel {
+  width: 100%;
+  margin-top: 10px;
+  background: #30343e;
+  color: #fff;
+  font-size: 0.85rem;
+  padding: 10px;
+  border-radius: 10px;
+  border: 0;
+}
+
+@keyframes shake {
+  25% {
+    transform: translateX(-5px);
+  }
+  60% {
+    transform: translateX(4px);
+  }
+  85% {
+    transform: translateX(-2px);
+  }
+}
+
+@media (max-width: 870px) {
   body {
     padding: 12px;
   }
@@ -418,8 +546,10 @@ dialog::backdrop {
   }
 }
 
-@media(prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
