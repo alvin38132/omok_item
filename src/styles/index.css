@@ -503,6 +503,12 @@ dialog::backdrop {
   border: 1px solid var(--line);
 }
 
+.modal-choice.danger {
+  background: #ff6b6b;
+  color: #13151b;
+  border-color: transparent;
+}
+
 .modal-cancel {
   width: 100%;
   margin-top: 10px;
@@ -512,6 +518,17 @@ dialog::backdrop {
   padding: 10px;
   border-radius: 10px;
   border: 0;
+}
+
+.modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.modal-actions .modal-choice,
+.modal-actions .modal-cancel {
+  margin: 0;
 }
 
 @keyframes shake {
