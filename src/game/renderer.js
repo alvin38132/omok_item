@@ -69,10 +69,7 @@ export function drawGame(ctx, size, camera, view) {
 
   // Hover preview of the stone about to be placed.
   if (view.gameStarted && !view.gameOver && view.hover && !board[view.hover.y][view.hover.x] && !view.activeItem) {
-    ctx.save();
-    ctx.globalAlpha = 0.45;
-    drawStone(ctx, point, view.hover.x, view.hover.y, view.currentPlayer, gap);
-    ctx.restore();
+    drawPlacementPreview(ctx, point, view.hover.x, view.hover.y, view.currentPlayer, gap);
   }
 
   // Placed stones.
@@ -239,6 +236,31 @@ function drawHighlightCell(ctx, point, x, y, color, gap, dashed = false) {
   ctx.restore();
 }
 
+function drawPlacementPreview(ctx, point, x, y, player, gap) {
+  ctx.save();
+  ctx.globalAlpha = 0.45;
+  drawStone(ctx, point, x, y, player, gap);
+  ctx.restore();
+}
+
+function drawStoneSelectionHighlight(ctx, point, x, y, color, gap) {
+  const p = point(x, y);
+  const radius = gap * 0.52;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(2.2, gap * 0.08);
+  ctx.shadowColor = color;
+  ctx.shadowBlur = gap * 0.28;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function isKnightTarget(first, cell, offsets) {
+  return offsets.some(([dx, dy]) => first.x + dx === cell.x && first.y + dy === cell.y);
+}
+
 // Interactive targeting overlays for the active item.
 function drawItemOverlay(ctx, point, view, gap) {
   const { activeItem, itemState, hover, board, currentPlayer, gameOver } = view;
@@ -246,6 +268,14 @@ function drawItemOverlay(ctx, point, view, gap) {
 
   const highlightKnight = (offsets) => {
     if (!itemState.firstCell) return;
+    drawPlacementPreview(
+      ctx,
+      point,
+      itemState.firstCell.x,
+      itemState.firstCell.y,
+      currentPlayer,
+      gap,
+    );
     drawHighlightCell(ctx, point, itemState.firstCell.x, itemState.firstCell.y, '#ffd166', gap);
     for (const [dx, dy] of offsets) {
       const nx = itemState.firstCell.x + dx;
@@ -259,12 +289,28 @@ function drawItemOverlay(ctx, point, view, gap) {
   switch (activeItem) {
     case 'knight_move':
       highlightKnight(KNIGHT_OFFSETS);
+      if (hover && !board[hover.y][hover.x]) {
+        if (!itemState.firstCell || isKnightTarget(itemState.firstCell, hover, KNIGHT_OFFSETS)) {
+          drawPlacementPreview(ctx, point, hover.x, hover.y, currentPlayer, gap);
+        }
+      }
       break;
     case 'big_knight_move':
       highlightKnight(BIG_KNIGHT_OFFSETS);
+      if (hover && !board[hover.y][hover.x]) {
+        if (!itemState.firstCell || isKnightTarget(itemState.firstCell, hover, BIG_KNIGHT_OFFSETS)) {
+          drawPlacementPreview(ctx, point, hover.x, hover.y, currentPlayer, gap);
+        }
+      }
+      break;
+    case 'shared_stone':
+      if (hover && !board[hover.y][hover.x]) {
+        drawPlacementPreview(ctx, point, hover.x, hover.y, SHARED_STONE, gap);
+      }
       break;
     case 'area_blast':
       if (hover && board[hover.y][hover.x] === currentPlayer) {
+        drawStoneSelectionHighlight(ctx, point, hover.x, hover.y, '#ef476f', gap);
         for (let dy = -1; dy <= 1; dy++) {
           for (let dx = -1; dx <= 1; dx++) {
             const nx = hover.x + dx;
@@ -278,6 +324,7 @@ function drawItemOverlay(ctx, point, view, gap) {
       break;
     case 'line_clear':
       if (hover && board[hover.y][hover.x]) {
+        drawStoneSelectionHighlight(ctx, point, hover.x, hover.y, '#ff6b6b', gap);
         drawHighlightCell(ctx, point, hover.x, hover.y, '#ff6b6b', gap);
       }
       break;
@@ -285,6 +332,7 @@ function drawItemOverlay(ctx, point, view, gap) {
       if (hover) {
         const owner = board[hover.y][hover.x];
         if (owner && owner !== SHARED_STONE && owner !== currentPlayer) {
+          drawStoneSelectionHighlight(ctx, point, hover.x, hover.y, '#ffd166', gap);
           drawHighlightCell(ctx, point, hover.x, hover.y, 'rgba(255, 209, 102, 0.6)', gap);
         }
       }
