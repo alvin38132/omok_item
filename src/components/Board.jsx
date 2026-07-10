@@ -14,22 +14,13 @@ import {
 
 const CANVAS_SIZE = 950;
 
-export default function Board({
-  state,
-  hitAnimation,
-  timeRewindAnimation,
-  onCellClick,
-  onHitAnimationComplete,
-  onTimeRewindAnimationComplete,
-}) {
+export default function Board({ state, onCellClick }) {
   const canvasRef = useRef(null);
   const cameraRef = useRef({ ...DEFAULT_CAMERA });
   const hoverRef = useRef(null);
-  const keyboardCellRef = useRef({ x: 9, y: 9 });
+  const keyboardCellRef = useRef({ x: 50, y: 50 });
   const dragRef = useRef(null);
   const suppressClickRef = useRef(false);
-  const hitAnimationFrameRef = useRef(null);
-  const timeRewindFrameRef = useRef(null);
 
   // Latest game state, readable from imperative event handlers.
   const viewRef = useRef(state);
@@ -50,8 +41,6 @@ export default function Board({
       failedFlash: s.failedFlash,
       activeItem: s.activeItem,
       itemState: s.itemState,
-      hitAnimationFrame: hitAnimationFrameRef.current,
-      timeRewindFrame: timeRewindFrameRef.current,
     });
   };
 
@@ -70,124 +59,11 @@ export default function Board({
     state.itemState,
   ]);
 
-  useEffect(() => {
-    if (!hitAnimation) {
-      hitAnimationFrameRef.current = null;
-      draw();
-      return undefined;
-    }
-
-    let frameId = 0;
-    let segmentIndex = 0;
-    let segmentStartedAt = 0;
-    let finished = false;
-    const segments = hitAnimation.plan.segments;
-
-    const durationFor = (segment) => {
-      const distance = Math.hypot(segment.to.x - segment.from.x, segment.to.y - segment.from.y);
-      return Math.max(140, Math.min(680, distance * 55));
-    };
-
-    const buildFrame = (segment, progress) => {
-      const hiddenCells = segments
-        .slice(1, segmentIndex + 1)
-        .map((s) => s.from)
-        .filter((cell) => cell.x >= 0 && cell.x < SIZE && cell.y >= 0 && cell.y < SIZE);
-
-      const settledStones = segments
-        .slice(0, segmentIndex)
-        .filter((s) => !s.removeAtEdge)
-        .map((s) => ({ ...s.to, player: s.player }));
-
-      return {
-        hiddenCells,
-        settledStones,
-        movingStone: {
-          player: segment.player,
-          x: segment.from.x + (segment.to.x - segment.from.x) * progress,
-          y: segment.from.y + (segment.to.y - segment.from.y) * progress,
-        },
-      };
-    };
-
-    const step = (timestamp) => {
-      if (finished) return;
-      if (!segmentStartedAt) segmentStartedAt = timestamp;
-
-      const segment = segments[segmentIndex];
-      const duration = durationFor(segment);
-      const progress = Math.min(1, (timestamp - segmentStartedAt) / duration);
-      hitAnimationFrameRef.current = buildFrame(segment, progress);
-      draw();
-
-      if (progress >= 1) {
-        segmentIndex += 1;
-        segmentStartedAt = timestamp;
-        if (segmentIndex >= segments.length) {
-          finished = true;
-          hitAnimationFrameRef.current = null;
-          draw();
-          onHitAnimationComplete(hitAnimation.id);
-          return;
-        }
-      }
-
-      frameId = requestAnimationFrame(step);
-    };
-
-    frameId = requestAnimationFrame(step);
-    return () => {
-      finished = true;
-      cancelAnimationFrame(frameId);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hitAnimation]);
-
-  useEffect(() => {
-    if (!timeRewindAnimation) {
-      timeRewindFrameRef.current = null;
-      draw();
-      return undefined;
-    }
-
-    let frameId = 0;
-    let startedAt = 0;
-    let finished = false;
-    const duration = 1000;
-
-    const step = (timestamp) => {
-      if (finished) return;
-      if (!startedAt) startedAt = timestamp;
-      const progress = Math.min(1, (timestamp - startedAt) / duration);
-      timeRewindFrameRef.current = {
-        fadingStones: timeRewindAnimation.fadingStones,
-        opacity: 1 - progress,
-      };
-      draw();
-
-      if (progress >= 1) {
-        finished = true;
-        timeRewindFrameRef.current = null;
-        onTimeRewindAnimationComplete(timeRewindAnimation.id);
-        return;
-      }
-
-      frameId = requestAnimationFrame(step);
-    };
-
-    frameId = requestAnimationFrame(step);
-    return () => {
-      finished = true;
-      cancelAnimationFrame(frameId);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeRewindAnimation]);
-
   // Reset the camera to center on each new game.
   useEffect(() => {
     cameraRef.current = { ...DEFAULT_CAMERA };
     hoverRef.current = null;
-    keyboardCellRef.current = { x: 9, y: 9 };
+    keyboardCellRef.current = { x: 50, y: 50 };
     draw();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.session]);
@@ -298,7 +174,6 @@ export default function Board({
   };
 
   const handleClick = (event) => {
-    if (hitAnimation || timeRewindAnimation) return;
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
       return;
@@ -308,7 +183,7 @@ export default function Board({
 
   const handleKeyDown = (event) => {
     const s = viewRef.current;
-    if (!s.gameStarted || s.gameOver || hitAnimation || timeRewindAnimation) return;
+    if (!s.gameStarted || s.gameOver) return;
 
     const directions = {
       ArrowLeft: [-1, 0],
@@ -355,7 +230,7 @@ export default function Board({
         width={CANVAS_SIZE}
         height={CANVAS_SIZE}
         tabIndex={0}
-        aria-label="19 by 19 Omok board. Click to place, drag to pan, or use the wheel to zoom."
+        aria-label="100 by 100 Omok board. Click to place, drag to pan, or use the wheel to zoom."
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}

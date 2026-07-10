@@ -6,18 +6,14 @@ import { useGameEngine } from './hooks/useGameEngine.js';
 import Board from './components/Board.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import SetupDialog from './components/SetupDialog.jsx';
-import TimeStoneConfirmDialog from './components/TimeStoneConfirmDialog.jsx';
-import { timeStoneRoll } from './game/random.js';
+import LineClearModal from './components/LineClearModal.jsx';
+import RandomFlipConfirmModal from './components/RandomFlipConfirmModal.jsx';
 
 export default function App() {
   const engine = useGameEngine();
   const { state } = engine;
   const [showSetup, setShowSetup] = useState(true);
-  const [timeStoneDialog, setTimeStoneDialog] = useState({
-    open: false,
-    rolling: false,
-    result: undefined,
-  });
+  const [confirmRandomFlip, setConfirmRandomFlip] = useState(false);
 
   // Auto-clear the "failed placement" X after a short delay.
   useEffect(() => {
@@ -28,42 +24,27 @@ export default function App() {
 
   const handleStart = (playerCount, fiftyFifty) => {
     engine.startGame(playerCount, fiftyFifty);
+    setConfirmRandomFlip(false);
     setShowSetup(false);
-    setTimeStoneDialog({ open: false, rolling: false, result: undefined });
   };
 
   const handleActivateItem = (itemId) => {
-    if (engine.hitAnimation || engine.timeRewindAnimation) return;
-    if (itemId === 'time_stone') {
-      setTimeStoneDialog({ open: true, rolling: false, result: undefined });
+    if (itemId === 'random_flip') {
+      setConfirmRandomFlip(true);
       return;
     }
     engine.activateItem(itemId);
   };
 
-  const handleConfirmTimeStone = () => {
-    const result = timeStoneRoll();
-    setTimeStoneDialog({ open: true, rolling: true, result });
-    window.setTimeout(() => {
-      setTimeStoneDialog({ open: true, rolling: false, result });
-      window.setTimeout(() => {
-        setTimeStoneDialog({ open: false, rolling: false, result: undefined });
-        engine.useTimeStone(result);
-      }, 700);
-    }, 1400);
+  const handleConfirmRandomFlip = () => {
+    setConfirmRandomFlip(false);
+    engine.activateItem('random_flip');
   };
 
   return (
     <>
       <main className="app">
-        <Board
-          state={state}
-          hitAnimation={engine.hitAnimation}
-          timeRewindAnimation={engine.timeRewindAnimation}
-          onCellClick={engine.clickCell}
-          onHitAnimationComplete={engine.finishHitAnimation}
-          onTimeRewindAnimationComplete={engine.finishTimeRewindAnimation}
-        />
+        <Board state={state} onCellClick={engine.clickCell} />
         <Sidebar
           state={state}
           stats={engine.stats}
@@ -80,12 +61,16 @@ export default function App() {
         onStart={handleStart}
       />
 
-      <TimeStoneConfirmDialog
-        open={timeStoneDialog.open}
-        rolling={timeStoneDialog.rolling}
-        result={timeStoneDialog.result}
-        onConfirm={handleConfirmTimeStone}
-        onCancel={() => setTimeStoneDialog({ open: false, rolling: false, result: undefined })}
+      <LineClearModal
+        cell={state.lineClearCell}
+        onChoose={engine.chooseLineClearDirection}
+        onCancel={engine.cancelLineClear}
+      />
+
+      <RandomFlipConfirmModal
+        open={confirmRandomFlip}
+        onConfirm={handleConfirmRandomFlip}
+        onCancel={() => setConfirmRandomFlip(false)}
       />
     </>
   );

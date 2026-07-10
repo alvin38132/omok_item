@@ -10,14 +10,6 @@ function secureUint32() {
   return value[0];
 }
 
-function secureInt(maxExclusive) {
-  const range = 0x100000000;
-  const limit = Math.floor(range / maxExclusive) * maxExclusive;
-  let value = secureUint32();
-  while (value >= limit) value = secureUint32();
-  return value % maxExclusive;
-}
-
 // Fair coin flip. Returns true ~50% of the time.
 export function fiftyFiftyRoll() {
   return secureUint32() < 0x80000000;
@@ -25,12 +17,19 @@ export function fiftyFiftyRoll() {
 
 // Returns true with the given percent probability (0-100).
 export function chance(percent) {
-  return secureInt(100) < percent;
+  return secureUint32() % 100 < percent;
 }
 
-// Time Stone die: three fail sides, then undo 1, 2, or 3 turns.
-export function timeStoneRoll() {
-  const side = secureInt(6);
-  return side < 3 ? null : side - 2;
+// Uniform integer in [0, maxExclusive).
+export function randomInt(maxExclusive) {
+  return secureUint32() % maxExclusive;
 }
 
+// In-place Fisher-Yates shuffle using secure randomness.
+export function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}

@@ -4,6 +4,7 @@
 // pre-rolled randomness), so it never touches the DOM, `crypto`, or `Date`.
 // That makes it safe under React StrictMode and easy to reason about.
 
+import { SHARED_STONE, SIZE } from './constants.js';
 import { ITEMS_BY_ID } from './items.js';
 import {
   createBoard,
@@ -13,8 +14,8 @@ import {
   inBounds,
   isBoardFull,
   findWinningLine,
+  findAnyWin,
 } from './logic.js';
-import { directionFromCells } from './hitStone.js';
 
 export const initialState = {
   board: createBoard(),
@@ -27,11 +28,11 @@ export const initialState = {
   gameStarted: false,
   status: { message: 'Choose your game settings to begin.', kind: '' },
   failedFlash: null, // { x, y } | null
-  turnHistory: [], // board snapshots before completed turns, used by Time Stone
   // Items
   inventories: {}, // { [player]: { [itemId]: available } }
   activeItem: null, // itemId currently being targeted
   itemState: {}, // staging for multi-step items, e.g. { firstCell }
+  lineClearCell: null, // { x, y } when the Line Clear direction modal is open
   session: 0, // bumped on each new game (used to reset the camera)
 };
 
@@ -59,18 +60,8 @@ function consume(inventories, player, itemId) {
   };
 }
 
-function rememberTurn(state) {
-  return [
-    ...state.turnHistory,
-    {
-      board: state.board,
-      historyLength: state.history.length,
-    },
-  ];
-}
-
 // Reset item targeting fields to idle.
-const IDLE_ITEM = { activeItem: null, itemState: {} };
+const IDLE_ITEM = { activeItem: null, itemState: {}, lineClearCell: null };
 
 // Evaluate the outcome after one or more stones were placed for `player` on
 // `board`. Returns the state fields describing win / draw / continue.
@@ -120,15 +111,6 @@ function endTurn(state, board, customStatus) {
 }
 
 const defaultWin = (player) => `Player ${player} connects five and wins!`;
-
-function findFirstWinner(board, placements) {
-  for (const { x, y, player } of placements) {
-    if (!player) continue;
-    const line = findWinningLine(board, x, y, player);
-    if (line) return { player, line };
-  }
-  return null;
-}
 
 // ---------------------------------------------------------------------------
 // Item click handlers (one per targeting item)
@@ -187,10 +169,31 @@ function handleKnightMove(state, cell, itemId, offsetTest, shapeName) {
     { x: cell.x, y: cell.y, player, success: true },
   ];
   const inventories = consume(state.inventories, player, itemId);
-  const turnHistory = rememberTurn(state);
 
   const outcome = resolveOutcome(state, next, [first, cell], player, defaultWin);
-  return { ...state, history, inventories, turnHistory, ...outcome };
+  return { ...state, history, inventories, ...outcome };
+}
+
+function handleSharedStone(state, cell) {
+  const { board, currentPlayer: player } = state;
+  if (board[cell.y][cell.x]) {
+    return { ...state, status: status('Intersection occupied.', 'error') };
+  }
+
+  const next = cloneBoard(board);
+  next[cell.y][cell.x] = SHARED_STONE;
+
+  const history = [...state.history, { x: cell.x, y: cell.y, player, success: true }];
+  const inventories = consume(state.inventories, player, 'shared_stone');
+
+  const outcome = resolveOutcome(
+    state,
+    next,
+    [cell],
+    player,
+    (p) => `Player ${p} connects five and wins via Wildcard!`,
+  );
+  return { ...state, history, inventories, ...outcome };
 }
 
 function handleAreaBlast(state, cell) {
@@ -212,14 +215,13 @@ function handleAreaBlast(state, cell) {
   }
 
   const inventories = consume(state.inventories, player, 'area_blast');
-  const turnHistory = rememberTurn(state);
-  return endTurn({ ...state, inventories, turnHistory }, next);
+  return endTurn({ ...state, inventories }, next);
 }
 
 function handleStealStone(state, cell, success) {
   const { board, currentPlayer: player } = state;
   const owner = board[cell.y][cell.x];
-  if (!owner || owner === player) {
+  if (!owner || owner === player || owner === SHARED_STONE) {
     return {
       ...state,
       status: status("Must select an opponent's regular stone.", 'error'),
@@ -227,11 +229,10 @@ function handleStealStone(state, cell, success) {
   }
 
   const inventories = consume(state.inventories, player, 'steal_stone');
-  const turnHistory = rememberTurn(state);
 
   if (!success) {
     return endTurn(
-      { ...state, inventories, turnHistory },
+      { ...state, inventories },
       board,
       status(`Conversion failed for opponent stone at (${cell.x}, ${cell.y}).`, 'error'),
     );
@@ -246,7 +247,6 @@ function handleStealStone(state, cell, success) {
       ...state,
       inventories,
       board: next,
-      turnHistory,
       gameOver: true,
       winningCells: line,
       status: status(defaultWin(player), 'win'),
@@ -254,141 +254,10 @@ function handleStealStone(state, cell, success) {
     };
   }
   return endTurn(
-    { ...state, inventories, turnHistory },
+    { ...state, inventories },
     next,
     status(`Success! Converted opponent stone at (${cell.x}, ${cell.y}) to your color.`),
   );
-}
-
-function handleHitStone(state, cell) {
-  const { board, currentPlayer: player } = state;
-
-  if (!state.itemState.firstCell) {
-    if (board[cell.y][cell.x]) {
-      return {
-        ...state,
-        status: status('Choose an empty intersection for the Hit Stone start.', 'error'),
-      };
-    }
-    return {
-      ...state,
-      itemState: { firstCell: cell },
-      status: status(
-        `Hit Stone start selected at (${cell.x}, ${cell.y}). Click a row or column direction.`,
-      ),
-    };
-  }
-
-  const first = state.itemState.firstCell;
-  const direction = directionFromCells(first, cell);
-  if (!direction) {
-    return {
-      ...state,
-      status: status(
-        'Choose a direction in the same row or column from the start.',
-        'error',
-      ),
-    };
-  }
-
-  return {
-    ...state,
-    status: status('Hit Stone is moving. The turn will end when every stone stops.'),
-  };
-}
-
-function commitHitStone(state, plan) {
-  const player = state.currentPlayer;
-  const next = plan.board;
-  const inventories = consume(state.inventories, player, 'hit_stone');
-  const turnHistory = rememberTurn(state);
-  const history = [...state.history, { x: plan.start.x, y: plan.start.y, player, success: true }];
-  const winner = findFirstWinner(next, plan.placements);
-
-  if (winner) {
-    return {
-      ...state,
-      board: next,
-      history,
-      inventories,
-      turnHistory,
-      gameOver: true,
-      winningCells: winner.line,
-      status: status(`Player ${winner.player} connects five and wins!`, 'win'),
-      ...IDLE_ITEM,
-    };
-  }
-
-  if (isBoardFull(next)) {
-    return {
-      ...state,
-      board: next,
-      history,
-      inventories,
-      turnHistory,
-      gameOver: true,
-      winningCells: [],
-      status: status('The board is full. The game is a draw.'),
-      ...IDLE_ITEM,
-    };
-  }
-
-  return endTurn(
-    { ...state, history, inventories, turnHistory },
-    next,
-    status('Hit Stone resolved. The final stone hit the edge and was removed.'),
-  );
-}
-
-function handleTimeStone(state, roll) {
-  const player = state.currentPlayer;
-  if (!state.inventories[player]?.time_stone || state.gameOver || !state.gameStarted) {
-    return state;
-  }
-
-  const inventories = consume(state.inventories, player, 'time_stone');
-
-  if (!roll) {
-    return endTurn(
-      { ...state, inventories, failedFlash: null },
-      state.board,
-      status('Time Stone failed. No turns were undone.', 'error'),
-    );
-  }
-
-  const undoCount = Math.min(roll, state.turnHistory.length);
-  const nextPlayerAfterUse = nextPlayer(player, state.playerCount);
-
-  if (!undoCount) {
-    return {
-      ...state,
-      inventories,
-      currentPlayer: nextPlayerAfterUse,
-      failedFlash: null,
-      status: status('Time Stone rolled a number, but there are no previous turns to undo.'),
-      ...IDLE_ITEM,
-    };
-  }
-
-  const targetIndex = state.turnHistory.length - undoCount;
-  const snapshot = state.turnHistory[targetIndex];
-  const label = undoCount === roll
-    ? `${undoCount} turn${undoCount === 1 ? '' : 's'}`
-    : `${undoCount} available turn${undoCount === 1 ? '' : 's'} of ${roll}`;
-
-  return {
-    ...state,
-    board: snapshot.board,
-    history: state.history.slice(0, snapshot.historyLength),
-    turnHistory: state.turnHistory.slice(0, targetIndex),
-    inventories,
-    currentPlayer: nextPlayerAfterUse,
-    gameOver: false,
-    winningCells: [],
-    failedFlash: null,
-    status: status(`Time Stone rolled ${roll}. Undid ${label}. Player ${nextPlayerAfterUse} is next.`),
-    ...IDLE_ITEM,
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -405,7 +274,6 @@ export function gameReducer(state, action) {
         fiftyFifty: action.fiftyFifty,
         gameStarted: true,
         inventories: buildInventories(playerCount),
-        turnHistory: [],
         session: state.session + 1,
         status: status(
           `Player 1 begins. ${
@@ -434,20 +302,18 @@ export function gameReducer(state, action) {
 
       const player = state.currentPlayer;
       const history = [...state.history, { x: cell.x, y: cell.y, player, success }];
-      const turnHistory = rememberTurn(state);
 
       if (success) {
         const next = cloneBoard(state.board);
         next[cell.y][cell.x] = player;
         const outcome = resolveOutcome(state, next, [cell], player, defaultWin);
-        return { ...state, history, turnHistory, failedFlash: null, ...outcome };
+        return { ...state, history, failedFlash: null, ...outcome };
       }
 
       const nextP = nextPlayer(player, state.playerCount);
       return {
         ...state,
         history,
-        turnHistory,
         failedFlash: cell,
         currentPlayer: nextP,
         status: status(
@@ -477,6 +343,7 @@ export function gameReducer(state, action) {
         ...state,
         activeItem: action.itemId,
         itemState: {},
+        lineClearCell: null,
         status: status(
           `[ITEM ACTIVE] ${item.desc} (Click the item again to cancel)`,
         ),
@@ -484,7 +351,7 @@ export function gameReducer(state, action) {
     }
 
     case 'CANCEL_ITEM':
-      if (!state.activeItem) return state;
+      if (!state.activeItem && !state.lineClearCell) return state;
       return {
         ...state,
         ...IDLE_ITEM,
@@ -492,26 +359,6 @@ export function gameReducer(state, action) {
           `Player ${state.currentPlayer}'s turn. Choose any empty intersection.`,
         ),
       };
-
-    case 'USE_TIME_STONE':
-      return handleTimeStone(state, action.roll);
-
-    case 'BEGIN_TIME_STONE_ANIMATION':
-      return {
-        ...state,
-        status: status('Time Stone is rewinding. Removed stones are fading out.'),
-      };
-
-    case 'BEGIN_HIT_STONE_ANIMATION':
-      if (state.activeItem !== 'hit_stone') return state;
-      return {
-        ...state,
-        status: status('Hit Stone is moving. The turn will end when every stone stops.'),
-      };
-
-    case 'RESOLVE_HIT_STONE':
-      if (state.activeItem !== 'hit_stone' || !action.plan) return state;
-      return commitHitStone(state, action.plan);
 
     // A board click while an item is being targeted. `roll` carries any
     // pre-computed randomness the item needs (e.g. steal success).
@@ -522,6 +369,15 @@ export function gameReducer(state, action) {
       }
 
       switch (state.activeItem) {
+        case 'line_clear':
+          if (!state.board[cell.y][cell.x]) {
+            return {
+              ...state,
+              status: status('Must select an intersection with a stone to clear.', 'error'),
+            };
+          }
+          return { ...state, lineClearCell: cell };
+
         case 'knight_move':
           return handleKnightMove(
             state,
@@ -540,18 +396,91 @@ export function gameReducer(state, action) {
             "Big Knight's move (눈목자)",
           );
 
+        case 'shared_stone':
+          return handleSharedStone(state, cell);
+
         case 'area_blast':
           return handleAreaBlast(state, cell);
 
         case 'steal_stone':
           return handleStealStone(state, cell, roll?.success ?? false);
 
-        case 'hit_stone':
-          return handleHitStone(state, cell);
-
         default:
           return state;
       }
+    }
+
+    // Apply the chosen Line Clear direction through the staged cell.
+    case 'LINE_CLEAR_DIRECTION': {
+      const cell = state.lineClearCell;
+      if (!cell) return state;
+
+      const next = cloneBoard(state.board);
+      const clear = (x, y) => {
+        if (inBounds(x, y)) next[y][x] = 0;
+      };
+
+      switch (action.direction) {
+        case 'horizontal':
+          for (let x = 0; x < SIZE; x++) clear(x, cell.y);
+          break;
+        case 'vertical':
+          for (let y = 0; y < SIZE; y++) clear(cell.x, y);
+          break;
+        case 'diag_down': {
+          const k = cell.y - cell.x;
+          for (let x = 0; x < SIZE; x++) clear(x, x + k);
+          break;
+        }
+        case 'diag_up': {
+          const k = cell.y + cell.x;
+          for (let x = 0; x < SIZE; x++) clear(x, k - x);
+          break;
+        }
+        default:
+          return state;
+      }
+
+      const inventories = consume(state.inventories, state.currentPlayer, 'line_clear');
+      return endTurn({ ...state, inventories }, next);
+    }
+
+    // Random Flip. `flips` is a pre-computed list of { x, y, owner } produced
+    // by the caller (which owns the randomness).
+    case 'RANDOM_FLIP': {
+      const { flips } = action;
+      if (!flips || flips.length === 0) {
+        return {
+          ...state,
+          status: status('No active stones on the board to flip.', 'error'),
+        };
+      }
+
+      const next = cloneBoard(state.board);
+      for (const { x, y, owner } of flips) next[y][x] = owner;
+
+      const inventories = consume(state.inventories, state.currentPlayer, 'random_flip');
+      const win = findAnyWin(next);
+
+      if (win) {
+        return {
+          ...state,
+          inventories,
+          board: next,
+          gameOver: true,
+          winningCells: win.line,
+          status: status(
+            `Flipping complete. Player ${win.player} connects five and wins!`,
+            'win',
+          ),
+          ...IDLE_ITEM,
+        };
+      }
+      return endTurn(
+        { ...state, inventories },
+        next,
+        status(`Flipped ownership of ${flips.length} stones randomly across the board.`),
+      );
     }
 
     default:
