@@ -2,10 +2,10 @@
 // camera and the current game view, it paints a frame. It never mutates game
 // state (camera clamping returns a new object).
 
-import { SIZE, SHARED_STONE } from './constants.js';
+import { SIZE } from './constants.js';
 import { playerColor, shadeColor } from './colors.js';
 import { inBounds } from './logic.js';
-import { KNIGHT_OFFSETS, BIG_KNIGHT_OFFSETS } from './items.js';
+import { KNIGHT_OFFSETS, BIG_KNIGHT_OFFSETS, HIT_DIRECTIONS } from './items.js';
 
 // ---------------------------------------------------------------------------
 // Camera / coordinate helpers
@@ -23,6 +23,13 @@ export function clampCamera(camera, size) {
   const half = size / (2 * camera.gap);
   const min = half;
   const max = SIZE - 1 - half;
+  if (min > max) {
+    return {
+      ...camera,
+      x: (SIZE - 1) / 2,
+      y: (SIZE - 1) / 2,
+    };
+  }
   return {
     ...camera,
     x: Math.max(min, Math.min(max, camera.x)),
@@ -68,17 +75,35 @@ export function drawGame(ctx, size, camera, view) {
   const { board } = view;
 
   // Hover preview of the stone about to be placed.
-  if (view.gameStarted && !view.gameOver && view.hover && !board[view.hover.y][view.hover.x] && !view.activeItem) {
+  if (
+    view.gameStarted
+    && !view.gameOver
+    && !view.hitAnimationFrame
+    && !view.timeRewindFrame
+    && view.hover
+    && !board[view.hover.y][view.hover.x]
+    && !view.activeItem
+  ) {
     drawPlacementPreview(ctx, point, view.hover.x, view.hover.y, view.currentPlayer, gap);
   }
+
+  const hiddenCells = new Set(
+    [
+      ...(view.hitAnimationFrame?.hiddenCells || []),
+      ...(view.timeRewindFrame?.fadingStones || []),
+    ].map((cell) => `${cell.x},${cell.y}`),
+  );
 
   // Placed stones.
   for (let y = range.minY; y <= range.maxY; y++) {
     for (let x = range.minX; x <= range.maxX; x++) {
+      if (hiddenCells.has(`${x},${y}`)) continue;
       if (board[y][x]) drawStone(ctx, point, x, y, board[y][x], gap);
     }
   }
 
+  drawHitAnimation(ctx, point, view.hitAnimationFrame, gap);
+  drawTimeRewindAnimation(ctx, point, view.timeRewindFrame, gap);
   drawFailedFlash(ctx, point, view.failedFlash, gap);
   drawWinningLine(ctx, point, board, view.winningCells, gap);
   drawItemOverlay(ctx, point, view, gap);
@@ -129,8 +154,8 @@ function drawGrid(ctx, size, point, range) {
 
 function drawStarPoints(ctx, size, point, gap) {
   ctx.fillStyle = '#382517';
-  for (const x of [19, 49, 79]) {
-    for (const y of [19, 49, 79]) {
+  for (const x of [3, 9, 15]) {
+    for (const y of [3, 9, 15]) {
       const p = point(x, y);
       if (p.x >= -gap && p.x <= size + gap && p.y >= -gap && p.y <= size + gap) {
         ctx.beginPath();
@@ -154,17 +179,9 @@ function drawStone(ctx, point, x, y, player, gap) {
     px - radius * 0.32, py - radius * 0.38, radius * 0.06,
     px, py, radius,
   );
-  if (player === SHARED_STONE) {
-    gradient.addColorStop(0, '#fff');
-    gradient.addColorStop(0.2, '#ff5964');
-    gradient.addColorStop(0.5, '#ffd166');
-    gradient.addColorStop(0.8, '#06d6a0');
-    gradient.addColorStop(1, '#118ab2');
-  } else {
-    gradient.addColorStop(0, '#fff');
-    gradient.addColorStop(0.12, playerColor(player));
-    gradient.addColorStop(1, shadeColor(playerColor(player), -0.32));
-  }
+  gradient.addColorStop(0, '#fff');
+  gradient.addColorStop(0.12, playerColor(player));
+  gradient.addColorStop(1, shadeColor(playerColor(player), -0.32));
 
   ctx.fillStyle = gradient;
   ctx.beginPath();
@@ -172,7 +189,7 @@ function drawStone(ctx, point, x, y, player, gap) {
   ctx.fill();
 
   ctx.shadowColor = 'transparent';
-  ctx.strokeStyle = player === SHARED_STONE ? '#ffffff' : 'rgba(255, 255, 255, 0.48)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.48)';
   ctx.lineWidth = Math.max(1.2, gap * 0.035);
   ctx.stroke();
 
@@ -183,7 +200,7 @@ function drawStone(ctx, point, x, y, player, gap) {
     ctx.textBaseline = 'middle';
     ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
     ctx.shadowBlur = 3;
-    ctx.fillText(player === SHARED_STONE ? '★' : String(player), px, py + gap * 0.015);
+    ctx.fillText(String(player), px, py + gap * 0.015);
   }
   ctx.restore();
 }
@@ -243,6 +260,33 @@ function drawPlacementPreview(ctx, point, x, y, player, gap) {
   ctx.restore();
 }
 
+function drawHitAnimation(ctx, point, frame, gap) {
+  if (!frame) return;
+  for (const stone of frame.settledStones || []) {
+    drawStone(ctx, point, stone.x, stone.y, stone.player, gap);
+  }
+  if (frame.movingStone) {
+    drawStone(
+      ctx,
+      point,
+      frame.movingStone.x,
+      frame.movingStone.y,
+      frame.movingStone.player,
+      gap,
+    );
+  }
+}
+
+function drawTimeRewindAnimation(ctx, point, frame, gap) {
+  if (!frame) return;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, frame.opacity));
+  for (const stone of frame.fadingStones || []) {
+    drawStone(ctx, point, stone.x, stone.y, stone.player, gap);
+  }
+  ctx.restore();
+}
+
 function drawStoneSelectionHighlight(ctx, point, x, y, color, gap) {
   const p = point(x, y);
   const radius = gap * 0.52;
@@ -261,10 +305,32 @@ function isKnightTarget(first, cell, offsets) {
   return offsets.some(([dx, dy]) => first.x + dx === cell.x && first.y + dy === cell.y);
 }
 
+function drawDirectionGuide(ctx, point, from, direction, color, gap) {
+  let end = from;
+  let next = { x: from.x + direction.dx, y: from.y + direction.dy };
+  while (inBounds(next.x, next.y)) {
+    end = next;
+    next = { x: next.x + direction.dx, y: next.y + direction.dy };
+  }
+
+  const a = point(from.x, from.y);
+  const b = point(end.x, end.y);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(2, gap * 0.08);
+  ctx.lineCap = 'round';
+  ctx.setLineDash([gap * 0.28, gap * 0.18]);
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.stroke();
+  ctx.restore();
+}
+
 // Interactive targeting overlays for the active item.
 function drawItemOverlay(ctx, point, view, gap) {
   const { activeItem, itemState, hover, board, currentPlayer, gameOver } = view;
-  if (!activeItem || gameOver) return;
+  if (!activeItem || gameOver || view.hitAnimationFrame || view.timeRewindFrame) return;
 
   const highlightKnight = (offsets) => {
     if (!itemState.firstCell) return;
@@ -303,11 +369,6 @@ function drawItemOverlay(ctx, point, view, gap) {
         }
       }
       break;
-    case 'shared_stone':
-      if (hover && !board[hover.y][hover.x]) {
-        drawPlacementPreview(ctx, point, hover.x, hover.y, SHARED_STONE, gap);
-      }
-      break;
     case 'area_blast':
       if (hover && board[hover.y][hover.x] === currentPlayer) {
         drawStoneSelectionHighlight(ctx, point, hover.x, hover.y, '#ef476f', gap);
@@ -322,18 +383,59 @@ function drawItemOverlay(ctx, point, view, gap) {
         }
       }
       break;
-    case 'line_clear':
-      if (hover && board[hover.y][hover.x]) {
-        drawStoneSelectionHighlight(ctx, point, hover.x, hover.y, '#ff6b6b', gap);
-        drawHighlightCell(ctx, point, hover.x, hover.y, '#ff6b6b', gap);
-      }
-      break;
     case 'steal_stone':
       if (hover) {
         const owner = board[hover.y][hover.x];
-        if (owner && owner !== SHARED_STONE && owner !== currentPlayer) {
+        if (owner && owner !== currentPlayer) {
           drawStoneSelectionHighlight(ctx, point, hover.x, hover.y, '#ffd166', gap);
           drawHighlightCell(ctx, point, hover.x, hover.y, 'rgba(255, 209, 102, 0.6)', gap);
+        }
+      }
+      break;
+    case 'hit_stone':
+      if (!itemState.firstCell) {
+        if (hover && !board[hover.y][hover.x]) {
+          drawPlacementPreview(ctx, point, hover.x, hover.y, currentPlayer, gap);
+          drawHighlightCell(ctx, point, hover.x, hover.y, 'rgba(6, 214, 160, 0.55)', gap);
+        }
+        break;
+      }
+
+      drawPlacementPreview(
+        ctx,
+        point,
+        itemState.firstCell.x,
+        itemState.firstCell.y,
+        currentPlayer,
+        gap,
+      );
+      drawHighlightCell(
+        ctx,
+        point,
+        itemState.firstCell.x,
+        itemState.firstCell.y,
+        '#ffd166',
+        gap,
+      );
+
+      for (const [dx, dy] of HIT_DIRECTIONS) {
+        const nx = itemState.firstCell.x + dx;
+        const ny = itemState.firstCell.y + dy;
+        if (inBounds(nx, ny)) {
+          drawHighlightCell(ctx, point, nx, ny, 'rgba(255, 209, 102, 0.35)', gap, true);
+        }
+      }
+
+      if (hover) {
+        const rawDx = hover.x - itemState.firstCell.x;
+        const rawDy = hover.y - itemState.firstCell.y;
+        const direction = rawDx === 0 && rawDy === 0
+          ? null
+          : rawDx === 0 || rawDy === 0
+            ? { dx: Math.sign(rawDx), dy: Math.sign(rawDy) }
+            : null;
+        if (direction) {
+          drawDirectionGuide(ctx, point, itemState.firstCell, direction, '#06d6a0', gap);
         }
       }
       break;

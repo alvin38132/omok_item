@@ -1,10 +1,9 @@
 // Color helpers shared between canvas rendering and HTML stone chips.
 
-import { COLORS, SHARED_STONE } from './constants.js';
+import { COLORS } from './constants.js';
 
 // Resolve the display color for a given player number.
 export function playerColor(player) {
-  if (player === SHARED_STONE) return '#ffffff';
   return COLORS[(player - 1) % COLORS.length];
 }
 
