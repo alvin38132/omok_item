@@ -1,16 +1,20 @@
 // Wraps the pure game reducer with an ergonomic API. This is where all the
 // impure bits live (randomness), so the reducer itself stays deterministic.
 
-import { useCallback, useMemo, useReducer } from 'react';
+import { useCallback, useMemo, useReducer, useState } from 'react';
 import { gameReducer, initialState } from '../game/reducer.js';
-import { ITEMS_BY_ID } from '../game/items.js';
-import { SIZE, SHARED_STONE } from '../game/constants.js';
-import { fiftyFiftyRoll, chance, randomInt, shuffle } from '../game/random.js';
+import { fiftyFiftyRoll, chance } from '../game/random.js';
+import { directionFromCells, planHitStone } from '../game/hitStone.js';
+import { SIZE } from '../game/constants.js';
 
 export function useGameEngine() {
   const [state, dispatch] = useReducer(gameReducer, initialState);
+  const [hitAnimation, setHitAnimation] = useState(null);
+  const [timeRewindAnimation, setTimeRewindAnimation] = useState(null);
 
   const startGame = useCallback((playerCount, fiftyFifty) => {
+    setHitAnimation(null);
+    setTimeRewindAnimation(null);
     dispatch({ type: 'START_GAME', playerCount, fiftyFifty });
   }, []);
 
@@ -23,64 +27,107 @@ export function useGameEngine() {
     dispatch({ type: 'PLACE', cell, success });
   }, [state.fiftyFifty]);
 
-  // Random Flip: choose ~30% of regular stones and reassign each to a random
-  // different player. Randomness is resolved here and handed to the reducer.
-  const runRandomFlip = useCallback(() => {
-    const { board, playerCount } = state;
-    const stones = [];
-    for (let y = 0; y < SIZE; y++) {
-      for (let x = 0; x < SIZE; x++) {
-        if (board[y][x] && board[y][x] !== SHARED_STONE) {
-          stones.push({ x, y, owner: board[y][x] });
-        }
-      }
-    }
-    if (stones.length === 0) {
-      dispatch({ type: 'RANDOM_FLIP', flips: [] });
-      return;
-    }
-
-    shuffle(stones);
-    const flipCount = Math.max(1, Math.round(stones.length * 0.3));
-    const flips = stones.slice(0, flipCount).map((stone) => {
-      let owner = randomInt(playerCount - 1) + 1;
-      if (owner >= stone.owner) owner += 1; // ensure a different owner
-      return { x: stone.x, y: stone.y, owner };
-    });
-    dispatch({ type: 'RANDOM_FLIP', flips });
-  }, [state]);
-
-  // Activate an item. Instant items fire immediately; targeting items enter
-  // targeting mode via the reducer.
+  // Activate a targeting item.
   const activateItem = useCallback((itemId) => {
-    const item = ITEMS_BY_ID[itemId];
-    if (!item) return;
-    if (item.actionType === 'instant' && state.activeItem !== itemId) {
-      if (itemId === 'random_flip') runRandomFlip();
-      return;
-    }
+    if (hitAnimation || timeRewindAnimation) return;
     dispatch({ type: 'ACTIVATE_ITEM', itemId });
-  }, [state.activeItem, runRandomFlip]);
+  }, [hitAnimation, timeRewindAnimation]);
 
   const cancelItem = useCallback(() => dispatch({ type: 'CANCEL_ITEM' }), []);
 
+  const useTimeStone = useCallback((roll) => {
+    if (hitAnimation || timeRewindAnimation) return;
+    if (!roll) {
+      dispatch({ type: 'USE_TIME_STONE', roll });
+      return;
+    }
+
+    const undoCount = Math.min(roll, state.turnHistory.length);
+    if (!undoCount) {
+      dispatch({ type: 'USE_TIME_STONE', roll });
+      return;
+    }
+
+    const snapshot = state.turnHistory[state.turnHistory.length - undoCount];
+    const fadingStones = [];
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const current = state.board[y][x];
+        const target = snapshot.board[y][x];
+        if (current && current !== target) {
+          fadingStones.push({ x, y, player: current });
+        }
+      }
+    }
+
+    if (!fadingStones.length) {
+      dispatch({ type: 'USE_TIME_STONE', roll });
+      return;
+    }
+
+    dispatch({ type: 'BEGIN_TIME_STONE_ANIMATION' });
+    setTimeRewindAnimation({
+      id: crypto.randomUUID(),
+      roll,
+      fadingStones,
+    });
+  }, [hitAnimation, timeRewindAnimation, state.board, state.turnHistory]);
+
+  const finishTimeRewindAnimation = useCallback((animationId) => {
+    setTimeRewindAnimation((animation) => {
+      if (!animation || animation.id !== animationId) return animation;
+      dispatch({ type: 'USE_TIME_STONE', roll: animation.roll });
+      return null;
+    });
+  }, []);
+
+  const finishHitAnimation = useCallback((animationId) => {
+    setHitAnimation((animation) => {
+      if (!animation || animation.id !== animationId) return animation;
+      dispatch({ type: 'RESOLVE_HIT_STONE', plan: animation.plan });
+      return null;
+    });
+  }, []);
+
   // A board cell click. Routes to item targeting or a normal placement.
   const clickCell = useCallback((cell) => {
-    if (!cell || state.gameOver || !state.gameStarted) return;
+    if (!cell || state.gameOver || !state.gameStarted || hitAnimation || timeRewindAnimation) return;
     if (state.activeItem) {
+      if (state.activeItem === 'hit_stone' && state.itemState.firstCell) {
+        const direction = directionFromCells(state.itemState.firstCell, cell);
+        if (direction) {
+          const plan = planHitStone(
+            state.board,
+            state.itemState.firstCell,
+            direction,
+            state.currentPlayer,
+          );
+          dispatch({ type: 'BEGIN_HIT_STONE_ANIMATION' });
+          setHitAnimation({
+            id: crypto.randomUUID(),
+            plan,
+          });
+          return;
+        }
+      }
+
       const roll =
         state.activeItem === 'steal_stone' ? { success: chance(30) } : undefined;
       dispatch({ type: 'ITEM_CLICK', cell, roll });
     } else {
       place(cell);
     }
-  }, [state.activeItem, state.gameOver, state.gameStarted, place]);
-
-  const chooseLineClearDirection = useCallback(
-    (direction) => dispatch({ type: 'LINE_CLEAR_DIRECTION', direction }),
-    [],
-  );
-  const cancelLineClear = useCallback(() => dispatch({ type: 'CANCEL_ITEM' }), []);
+  }, [
+    hitAnimation,
+    timeRewindAnimation,
+    state.activeItem,
+    state.board,
+    state.currentPlayer,
+    state.gameOver,
+    state.gameStarted,
+    state.itemState,
+    place,
+  ]);
 
   // Derived stats.
   const stats = useMemo(() => {
@@ -95,12 +142,15 @@ export function useGameEngine() {
   return {
     state,
     stats,
+    hitAnimation,
+    timeRewindAnimation,
     startGame,
     clearFlash,
     clickCell,
     activateItem,
     cancelItem,
-    chooseLineClearDirection,
-    cancelLineClear,
+    useTimeStone,
+    finishHitAnimation,
+    finishTimeRewindAnimation,
   };
 }
