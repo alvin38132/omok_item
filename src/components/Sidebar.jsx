@@ -5,7 +5,6 @@ import TurnCard from './TurnCard.jsx';
 import PlayerList from './PlayerList.jsx';
 import ItemsPanel from './ItemsPanel.jsx';
 import Stats from './Stats.jsx';
-import { playerColor } from '../game/colors.js';
 
 export default function Sidebar({ state, stats, onActivateItem, onNewGame }) {
   const { gameStarted, fiftyFifty, currentPlayer, gameOver, status } = state;
@@ -28,6 +27,10 @@ export default function Sidebar({ state, stats, onActivateItem, onNewGame }) {
       <br />
 
       <TurnCard currentPlayer={currentPlayer} gameOver={gameOver} />
+
+      <div className={`status ${status.kind || ''}`} role="status">
+        {status.message}
+      </div>
 
       <br />
 
