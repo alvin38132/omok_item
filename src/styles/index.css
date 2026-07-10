@@ -452,59 +452,83 @@ dialog::backdrop {
   width: 100%;
 }
 
-.dialog-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.dice-stage {
-  display: grid;
-  place-items: center;
-  gap: 16px;
-  margin: 12px 0 24px;
-}
-
-.dice-stage p {
-  min-height: 42px;
-  margin: 0;
-  text-align: center;
-}
-
-.dice {
-  width: 112px;
-  height: 112px;
-  display: grid;
-  place-items: center;
-  border-radius: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.22);
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.18), transparent 42%),
-    #f7f4ed;
-  color: #13151b;
-  font-size: 1.8rem;
-  font-weight: 900;
-  box-shadow:
-    inset -10px -12px 20px rgba(0, 0, 0, 0.16),
-    0 18px 36px rgba(0, 0, 0, 0.34);
-  transform-style: preserve-3d;
-}
-
-.dice span {
-  display: block;
-  min-width: 74px;
-  text-align: center;
-}
-
-.dice.rolling {
-  animation: dice-roll 0.42s linear infinite;
-}
-
 .limit-note {
   margin-top: 9px !important;
   margin-bottom: 0 !important;
   text-align: center;
   font-size: 0.72rem !important;
+}
+
+/* Line Clear direction modal (React-rendered overlay). */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 9, 12, 0.7);
+  display: grid;
+  place-items: center;
+  z-index: 999;
+  backdrop-filter: blur(6px);
+}
+
+.modal-content {
+  background: #1c1f27;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 24px;
+  border-radius: 20px;
+  width: min(380px, 90%);
+  text-align: center;
+}
+
+.modal-content h3 {
+  margin: 0 0 10px;
+  font-family: Georgia, serif;
+  color: #fff;
+  font-size: 1.4rem;
+}
+
+.modal-content p {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0 0 20px;
+}
+
+.modal-choice {
+  width: 100%;
+  margin-bottom: 8px;
+  background: #252933;
+  color: #fff;
+  font-size: 0.85rem;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+.modal-choice.danger {
+  background: #ff6b6b;
+  color: #13151b;
+  border-color: transparent;
+}
+
+.modal-cancel {
+  width: 100%;
+  margin-top: 10px;
+  background: #30343e;
+  color: #fff;
+  font-size: 0.85rem;
+  padding: 10px;
+  border-radius: 10px;
+  border: 0;
+}
+
+.modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.modal-actions .modal-choice,
+.modal-actions .modal-cancel {
+  margin: 0;
 }
 
 @keyframes shake {
@@ -516,21 +540,6 @@ dialog::backdrop {
   }
   85% {
     transform: translateX(-2px);
-  }
-}
-
-@keyframes dice-roll {
-  0% {
-    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(0);
-  }
-  35% {
-    transform: rotateX(110deg) rotateY(65deg) rotateZ(18deg) translateY(-8px);
-  }
-  70% {
-    transform: rotateX(220deg) rotateY(150deg) rotateZ(-16deg) translateY(3px);
-  }
-  100% {
-    transform: rotateX(360deg) rotateY(360deg) rotateZ(0deg) translateY(0);
   }
 }
 
