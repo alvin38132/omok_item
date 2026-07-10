@@ -270,7 +270,7 @@ function handleHitStone(state, cell) {
     if (board[cell.y][cell.x]) {
       return {
         ...state,
-        status: status('밀어내기 시작점으로 빈 교차점을 선택하세요.', 'error'),
+        status: status('알까기 시작점으로 빈 교차점을 선택하세요.', 'error'),
       };
     }
     return {
@@ -339,7 +339,7 @@ function commitHitStone(state, plan) {
   return endTurn(
     { ...state, history, inventories, turnHistory },
     next,
-    status('밀어내기가 끝났습니다. 마지막 돌은 바깥으로 밀려 제거되었습니다.'),
+    status('알까기가 끝났습니다. 마지막 돌은 바깥으로 밀려 제거되었습니다.'),
   );
 }
 
@@ -355,7 +355,7 @@ function handleTimeStone(state, roll) {
     return endTurn(
       { ...state, inventories, failedFlash: null },
       state.board,
-      status('시간석이 실패했습니다. 되돌린 차례가 없습니다.', 'error'),
+      status('시간 되돌리기가 실패했습니다. 되돌린 차례가 없습니다.', 'error'),
     );
   }
 
@@ -368,7 +368,7 @@ function handleTimeStone(state, roll) {
       inventories,
       currentPlayer: nextPlayerAfterUse,
       failedFlash: null,
-      status: status('시간석이 숫자를 냈지만 되돌릴 이전 차례가 없습니다.'),
+      status: status('시간 되돌리기가 숫자를 냈지만 되돌릴 이전 차례가 없습니다.'),
       ...IDLE_ITEM,
     };
   }
@@ -389,7 +389,7 @@ function handleTimeStone(state, roll) {
     gameOver: false,
     winningCells: [],
     failedFlash: null,
-    status: status(`시간석 결과: ${roll}. ${label}를 되돌렸습니다. ${playerName(nextPlayerAfterUse)} 차례입니다.`),
+    status: status(`시간 되돌리기 결과: ${roll}. ${label}를 되돌렸습니다. ${playerName(nextPlayerAfterUse)} 차례입니다.`),
     ...IDLE_ITEM,
   };
 }
@@ -477,7 +477,7 @@ export function gameReducer(state, action) {
     case 'BEGIN_TIME_STONE_ANIMATION':
       return {
         ...state,
-        status: status('시간석이 시간을 되감는 중입니다. 제거될 돌이 사라지고 있습니다.'),
+        status: status('시간 되돌리기로 시간을 되감는 중입니다. 제거될 돌이 사라지고 있습니다.'),
       };
 
     case 'BEGIN_HIT_STONE_ANIMATION':

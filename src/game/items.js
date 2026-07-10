@@ -32,13 +32,13 @@ export const ITEMS = [
   },
   {
     id: 'time_stone',
-    name: '시간석',
+    name: '시간 되돌리기',
     desc: '주사위를 굴려 실패하거나 1, 2, 3차례를 되돌립니다.',
     actionType: 'confirm',
   },
   {
     id: 'hit_stone',
-    name: '밀어내기',
+    name: '알까기',
     desc: '빈 시작점을 고른 뒤 가로 또는 세로 방향으로 돌을 밀어냅니다.',
     actionType: 'click_board',
   },

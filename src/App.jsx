@@ -7,6 +7,7 @@ import Board from './components/Board.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import SetupDialog from './components/SetupDialog.jsx';
 import TimeStoneConfirmDialog from './components/TimeStoneConfirmDialog.jsx';
+import EndGameCelebration from './components/EndGameCelebration.jsx';
 import { timeStoneRoll } from './game/random.js';
 
 export default function App() {
@@ -29,6 +30,11 @@ export default function App() {
   const handleStart = () => {
     engine.startGame();
     setShowSetup(false);
+    setTimeStoneDialog({ open: false, rolling: false, result: undefined });
+  };
+
+  const handleNewGame = () => {
+    setShowSetup(true);
     setTimeStoneDialog({ open: false, rolling: false, result: undefined });
   };
 
@@ -68,7 +74,7 @@ export default function App() {
           state={state}
           stats={engine.stats}
           onActivateItem={handleActivateItem}
-          onNewGame={() => setShowSetup(true)}
+          onNewGame={handleNewGame}
         />
       </main>
 
@@ -85,6 +91,10 @@ export default function App() {
         onConfirm={handleConfirmTimeStone}
         onCancel={() => setTimeStoneDialog({ open: false, rolling: false, result: undefined })}
       />
+
+      {!showSetup && (
+        <EndGameCelebration state={state} onNewGame={handleNewGame} />
+      )}
     </>
   );
 }

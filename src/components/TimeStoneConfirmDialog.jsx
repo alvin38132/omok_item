@@ -53,7 +53,7 @@ export default function TimeStoneConfirmDialog({
       }}
     >
       <form className="setup item-confirm" onSubmit={(event) => event.preventDefault()}>
-        <h2 id="timeStoneTitle">시간석을 사용할까요?</h2>
+        <h2 id="timeStoneTitle">시간 되돌리기를 사용할까요?</h2>
         <div className="dice-stage" aria-live="polite">
           <div className={`dice${rolling ? ' rolling' : ''}`}>
             <span>{face}</span>
