@@ -1,7 +1,7 @@
 // Pure game logic: board construction, coordinate helpers and win detection.
 // No DOM, no randomness, no React — trivially testable.
 
-import { SIZE, SHARED_STONE, MIN_PLAYERS, MAX_PLAYERS } from './constants.js';
+import { SIZE, MIN_PLAYERS, MAX_PLAYERS } from './constants.js';
 
 export function createBoard() {
   return Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
@@ -29,7 +29,7 @@ export function isBoardFull(board) {
 }
 
 // Scan the four directions through (x, y) for a run of five or more stones
-// owned by `player`. Shared wildcard stones (value 99) count for everyone.
+// owned by `player`.
 // Returns the array of winning cells, or null if there is no win.
 export function findWinningLine(board, x, y, player) {
   const directions = [
@@ -46,10 +46,7 @@ export function findWinningLine(board, x, y, player) {
       let nx = x + dx * sign;
       let ny = y + dy * sign;
 
-      while (
-        inBounds(nx, ny) &&
-        (board[ny][nx] === player || board[ny][nx] === SHARED_STONE)
-      ) {
+      while (inBounds(nx, ny) && board[ny][nx] === player) {
         if (sign < 0) line.unshift({ x: nx, y: ny });
         else line.push({ x: nx, y: ny });
         nx += dx * sign;
@@ -58,21 +55,6 @@ export function findWinningLine(board, x, y, player) {
     }
 
     if (line.length >= 5) return line;
-  }
-  return null;
-}
-
-// Find any winning line anywhere on the board (used after board-wide effects
-// such as Random Flip). Returns { player, line } or null.
-export function findAnyWin(board) {
-  for (let y = 0; y < SIZE; y++) {
-    for (let x = 0; x < SIZE; x++) {
-      const owner = board[y][x];
-      if (owner && owner !== SHARED_STONE) {
-        const line = findWinningLine(board, x, y, owner);
-        if (line) return { player: owner, line };
-      }
-    }
   }
   return null;
 }
