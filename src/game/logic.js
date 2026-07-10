@@ -1,7 +1,7 @@
 // Pure game logic: board construction, coordinate helpers and win detection.
 // No DOM, no randomness, no React — trivially testable.
 
-import { SIZE, MIN_PLAYERS, MAX_PLAYERS } from './constants.js';
+import { SIZE } from './constants.js';
 
 export function createBoard() {
   return Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
@@ -9,11 +9,6 @@ export function createBoard() {
 
 export function cloneBoard(board) {
   return board.map((row) => row.slice());
-}
-
-export function clampCount(value) {
-  const n = Number.parseInt(value, 10) || MIN_PLAYERS;
-  return Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, n));
 }
 
 export function nextPlayer(player, playerCount) {

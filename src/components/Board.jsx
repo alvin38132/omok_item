@@ -349,14 +349,14 @@ export default function Board({
   };
 
   return (
-    <section className="board-panel" aria-label="Multiplayer Omok game board">
+    <section className="board-panel" aria-label="오목판">
       <canvas
         ref={canvasRef}
         id="board"
         width={CANVAS_SIZE}
         height={CANVAS_SIZE}
         tabIndex={0}
-        aria-label={`${SIZE} by ${SIZE} Omok board. Click to place, drag to pan, or use the wheel to zoom.`}
+        aria-label={`${SIZE} x ${SIZE} 오목판. 클릭하면 돌을 놓고, 드래그하면 이동하며, 휠로 확대 또는 축소합니다.`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}

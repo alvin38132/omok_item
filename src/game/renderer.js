@@ -3,7 +3,7 @@
 // state (camera clamping returns a new object).
 
 import { SIZE } from './constants.js';
-import { playerColor, shadeColor } from './colors.js';
+import { playerColor, playerTextColor, shadeColor } from './colors.js';
 import { inBounds } from './logic.js';
 import { KNIGHT_OFFSETS, BIG_KNIGHT_OFFSETS, HIT_DIRECTIONS } from './items.js';
 
@@ -169,6 +169,8 @@ function drawStarPoints(ctx, size, point, gap) {
 function drawStone(ctx, point, x, y, player, gap) {
   const { x: px, y: py } = point(x, y);
   const radius = gap * 0.43;
+  const baseColor = playerColor(player);
+  const isWhite = player === 2;
 
   ctx.save();
   ctx.shadowColor = 'rgba(28, 19, 13, 0.48)';
@@ -179,9 +181,9 @@ function drawStone(ctx, point, x, y, player, gap) {
     px - radius * 0.32, py - radius * 0.38, radius * 0.06,
     px, py, radius,
   );
-  gradient.addColorStop(0, '#fff');
-  gradient.addColorStop(0.12, playerColor(player));
-  gradient.addColorStop(1, shadeColor(playerColor(player), -0.32));
+  gradient.addColorStop(0, isWhite ? '#ffffff' : '#6f6f6f');
+  gradient.addColorStop(0.16, baseColor);
+  gradient.addColorStop(1, isWhite ? shadeColor(baseColor, -0.18) : '#000000');
 
   ctx.fillStyle = gradient;
   ctx.beginPath();
@@ -189,16 +191,16 @@ function drawStone(ctx, point, x, y, player, gap) {
   ctx.fill();
 
   ctx.shadowColor = 'transparent';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.48)';
+  ctx.strokeStyle = isWhite ? 'rgba(0, 0, 0, 0.38)' : 'rgba(255, 255, 255, 0.35)';
   ctx.lineWidth = Math.max(1.2, gap * 0.035);
   ctx.stroke();
 
   if (gap >= 20) {
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = playerTextColor(player);
     ctx.font = `900 ${Math.max(10, gap * 0.34)}px Inter, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+    ctx.shadowColor = isWhite ? 'rgba(255, 255, 255, 0.65)' : 'rgba(0, 0, 0, 0.75)';
     ctx.shadowBlur = 3;
     ctx.fillText(String(player), px, py + gap * 0.015);
   }

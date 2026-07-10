@@ -18,11 +18,6 @@ function secureInt(maxExclusive) {
   return value % maxExclusive;
 }
 
-// Fair coin flip. Returns true ~50% of the time.
-export function fiftyFiftyRoll() {
-  return secureUint32() < 0x80000000;
-}
-
 // Returns true with the given percent probability (0-100).
 export function chance(percent) {
   return secureInt(100) < percent;

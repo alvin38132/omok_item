@@ -19,7 +19,7 @@ body {
   background: radial-gradient(circle at 10% 10%, rgba(255, 90, 105, 0.12), transparent 27rem),
     radial-gradient(circle at 90% 90%, rgba(75, 135, 255, 0.13), transparent 30rem),
     #111319;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Inter, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", ui-sans-serif, system-ui, sans-serif;
   padding: 22px;
 }
 
@@ -95,7 +95,7 @@ h1 {
   font-size: clamp(2.5rem, 4vw, 3.8rem);
   font-weight: 500;
   line-height: 0.9;
-  letter-spacing: -0.05em;
+  letter-spacing: 0;
 }
 
 .intro {
@@ -124,7 +124,7 @@ h1 {
   color: white;
   font-weight: 900;
   line-height: 1;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+  text-shadow: none;
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.36), 0 5px 10px rgba(0, 0, 0, 0.28);
 }
 
@@ -277,7 +277,7 @@ h1 {
 
 .meta {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 7px;
   margin: 16px 0;
 }
@@ -372,38 +372,6 @@ dialog::backdrop {
   line-height: 1.5;
 }
 
-.field-label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 0.77rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.count-row {
-  display: grid;
-  grid-template-columns: 48px 1fr 48px;
-  gap: 9px;
-  align-items: center;
-}
-
-.count-row button {
-  padding: 11px 0;
-  font-size: 1.15rem;
-}
-
-#playerCount {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 11px;
-  color: #fff;
-  background: #252933;
-  text-align: center;
-  font-weight: 800;
-}
-
 .preview {
   display: flex;
   flex-wrap: wrap;
@@ -414,38 +382,6 @@ dialog::backdrop {
 .preview .legend-stone {
   width: 32px;
   height: 32px;
-}
-
-.mode-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 14px;
-  margin-bottom: 22px;
-  border: 1px solid var(--line);
-  border-radius: 13px;
-  background: var(--panel-2);
-  cursor: pointer;
-}
-
-.mode-toggle strong,
-.mode-toggle small {
-  display: block;
-}
-
-.mode-toggle small {
-  margin-top: 3px;
-  color: var(--muted);
-  font-size: 0.72rem;
-  line-height: 1.35;
-}
-
-.mode-toggle input {
-  width: 22px;
-  height: 22px;
-  accent-color: #ef476f;
-  flex: 0 0 auto;
 }
 
 #startGame {

@@ -1,6 +1,8 @@
 // The "current turn" card at the top of the sidebar.
 
-import { playerColor } from '../game/colors.js';
+import { playerColor, playerTextColor } from '../game/colors.js';
+
+const playerName = (player) => (player === 1 ? '흑' : '백');
 
 export default function TurnCard({ currentPlayer, gameOver }) {
   return (
@@ -8,13 +10,16 @@ export default function TurnCard({ currentPlayer, gameOver }) {
       <div
         className="turn-stone"
         aria-hidden="true"
-        style={{ background: playerColor(currentPlayer) }}
+        style={{
+          background: playerColor(currentPlayer),
+          color: playerTextColor(currentPlayer),
+        }}
       >
         {currentPlayer}
       </div>
       <div>
-        <div className="small-label">Current turn</div>
-        <div id="turnText">{gameOver ? 'Game over' : `Player ${currentPlayer}`}</div>
+        <div className="small-label">현재 차례</div>
+        <div id="turnText">{gameOver ? '게임 종료' : playerName(currentPlayer)}</div>
       </div>
     </div>
   );

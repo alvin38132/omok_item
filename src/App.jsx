@@ -19,15 +19,15 @@ export default function App() {
     result: undefined,
   });
 
-  // Auto-clear the "failed placement" X after a short delay.
+  // Auto-clear transient board feedback after a short delay.
   useEffect(() => {
     if (!state.failedFlash) return undefined;
     const timer = setTimeout(engine.clearFlash, 700);
     return () => clearTimeout(timer);
   }, [state.failedFlash, engine.clearFlash]);
 
-  const handleStart = (playerCount, fiftyFifty) => {
-    engine.startGame(playerCount, fiftyFifty);
+  const handleStart = () => {
+    engine.startGame();
     setShowSetup(false);
     setTimeStoneDialog({ open: false, rolling: false, result: undefined });
   };
@@ -75,8 +75,6 @@ export default function App() {
       <SetupDialog
         open={showSetup}
         dismissable={state.gameStarted}
-        defaultCount={state.playerCount}
-        defaultFiftyFifty={state.fiftyFifty}
         onStart={handleStart}
       />
 
