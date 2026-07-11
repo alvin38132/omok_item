@@ -6,21 +6,17 @@ import ItemsPanel from './ItemsPanel.jsx';
 import Stats from './Stats.jsx';
 
 export default function Sidebar({ state, stats, onActivateItem, onNewGame }) {
-  const { gameStarted, fiftyFifty, currentPlayer, gameOver, status } = state;
+  const { gameStarted, currentPlayer, gameOver, status } = state;
 
-  const kicker = !gameStarted
-    ? 'Custom multiplayer'
-    : fiftyFifty
-      ? '50–50 multiplayer'
-      : 'Classic multiplayer';
+  const kicker = gameStarted ? '2인 아이템 오목' : '새 게임 대기 중';
 
   return (
     <aside className="sidebar">
       <p className="kicker">{kicker}</p>
       <h1>
-        Rainbow
+        아이템
         <br />
-        Omok
+        오목
       </h1>
 
       <br />
@@ -34,7 +30,7 @@ export default function Sidebar({ state, stats, onActivateItem, onNewGame }) {
       <br />
 
       <div className="small-label legend-title" style={{ marginTop: 15 }}>
-        Use Item (Once per game)
+        아이템 (게임당 1회)
       </div>
       {gameStarted && (
         <ItemsPanel
@@ -45,11 +41,11 @@ export default function Sidebar({ state, stats, onActivateItem, onNewGame }) {
         />
       )}
 
-      <Stats attempts={stats.attempts} placed={stats.placed} failed={stats.failed} />
+      <Stats attempts={stats.attempts} placed={stats.placed} />
 
       <div className="actions">
         <button id="newGame" type="button" onClick={onNewGame}>
-          New game
+          새 게임
         </button>
       </div>
     </aside>

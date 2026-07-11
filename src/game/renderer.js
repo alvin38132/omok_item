@@ -169,6 +169,8 @@ function drawStarPoints(ctx, size, point, gap) {
 function drawStone(ctx, point, x, y, player, gap) {
   const { x: px, y: py } = point(x, y);
   const radius = gap * 0.43;
+  const baseColor = playerColor(player);
+  const isWhite = player === 2;
 
   ctx.save();
   ctx.shadowColor = 'rgba(28, 19, 13, 0.48)';
@@ -179,9 +181,9 @@ function drawStone(ctx, point, x, y, player, gap) {
     px - radius * 0.32, py - radius * 0.38, radius * 0.06,
     px, py, radius,
   );
-  gradient.addColorStop(0, '#fff');
-  gradient.addColorStop(0.12, playerColor(player));
-  gradient.addColorStop(1, shadeColor(playerColor(player), -0.32));
+  gradient.addColorStop(0, isWhite ? '#ffffff' : '#6f6f6f');
+  gradient.addColorStop(0.16, baseColor);
+  gradient.addColorStop(1, isWhite ? shadeColor(baseColor, -0.18) : '#000000');
 
   ctx.fillStyle = gradient;
   ctx.beginPath();
@@ -189,19 +191,10 @@ function drawStone(ctx, point, x, y, player, gap) {
   ctx.fill();
 
   ctx.shadowColor = 'transparent';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.48)';
+  ctx.strokeStyle = isWhite ? 'rgba(0, 0, 0, 0.38)' : 'rgba(255, 255, 255, 0.35)';
   ctx.lineWidth = Math.max(1.2, gap * 0.035);
   ctx.stroke();
 
-  if (gap >= 20) {
-    ctx.fillStyle = '#fff';
-    ctx.font = `900 ${Math.max(10, gap * 0.34)}px Inter, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
-    ctx.shadowBlur = 3;
-    ctx.fillText(String(player), px, py + gap * 0.015);
-  }
   ctx.restore();
 }
 
@@ -224,21 +217,63 @@ function drawFailedFlash(ctx, point, flash, gap) {
 
 function drawWinningLine(ctx, point, board, cells, gap) {
   if (!cells || !cells.length) return;
-  ctx.save();
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = Math.max(2, gap * 0.11);
-  ctx.lineCap = 'round';
-  ctx.shadowColor = playerColor(board[cells[0].y][cells[0].x]);
-  ctx.shadowBlur = gap * 0.35;
+  const winner = board[cells[0].y][cells[0].x];
+  const glowColor = playerColor(winner);
+  const points = cells.map((cell) => point(cell.x, cell.y));
 
+  ctx.save();
+  ctx.lineCap = 'round';
+
+  ctx.strokeStyle = 'rgba(255, 209, 102, 0.32)';
+  ctx.lineWidth = Math.max(8, gap * 0.48);
+  ctx.shadowColor = '#ffd166';
+  ctx.shadowBlur = gap * 0.75;
   ctx.beginPath();
-  const start = point(cells[0].x, cells[0].y);
-  ctx.moveTo(start.x, start.y);
-  for (const cell of cells.slice(1)) {
-    const p = point(cell.x, cell.y);
+  ctx.moveTo(points[0].x, points[0].y);
+  for (const p of points.slice(1)) {
     ctx.lineTo(p.x, p.y);
   }
   ctx.stroke();
+
+  ctx.strokeStyle = '#fff7d6';
+  ctx.lineWidth = Math.max(2, gap * 0.13);
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = gap * 0.45;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (const p of points.slice(1)) {
+    ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+
+  for (const p of points) {
+    const pulse = gap * 0.57;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.86)';
+    ctx.lineWidth = Math.max(1.5, gap * 0.045);
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = gap * 0.34;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, pulse, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  for (const p of [points[0], points[points.length - 1]]) {
+    ctx.fillStyle = '#ffd166';
+    ctx.shadowColor = '#ffd166';
+    ctx.shadowBlur = gap * 0.42;
+    for (let i = 0; i < 10; i++) {
+      const angle = (Math.PI * 2 * i) / 10;
+      const inner = gap * 0.58;
+      const outer = gap * 0.82;
+      ctx.beginPath();
+      ctx.moveTo(p.x + Math.cos(angle) * inner, p.y + Math.sin(angle) * inner);
+      ctx.lineTo(p.x + Math.cos(angle) * outer, p.y + Math.sin(angle) * outer);
+      ctx.lineWidth = Math.max(1.2, gap * 0.035);
+      ctx.strokeStyle = 'rgba(255, 209, 102, 0.88)';
+      ctx.stroke();
+    }
+  }
+
   ctx.restore();
 }
 

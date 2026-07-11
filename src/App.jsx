@@ -7,6 +7,7 @@ import Board from './components/Board.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import SetupDialog from './components/SetupDialog.jsx';
 import TimeStoneConfirmDialog from './components/TimeStoneConfirmDialog.jsx';
+import EndGameCelebration from './components/EndGameCelebration.jsx';
 import { timeStoneRoll } from './game/random.js';
 
 export default function App() {
@@ -19,16 +20,21 @@ export default function App() {
     result: undefined,
   });
 
-  // Auto-clear the "failed placement" X after a short delay.
+  // Auto-clear transient board feedback after a short delay.
   useEffect(() => {
     if (!state.failedFlash) return undefined;
     const timer = setTimeout(engine.clearFlash, 700);
     return () => clearTimeout(timer);
   }, [state.failedFlash, engine.clearFlash]);
 
-  const handleStart = (playerCount, fiftyFifty) => {
-    engine.startGame(playerCount, fiftyFifty);
+  const handleStart = () => {
+    engine.startGame();
     setShowSetup(false);
+    setTimeStoneDialog({ open: false, rolling: false, result: undefined });
+  };
+
+  const handleNewGame = () => {
+    setShowSetup(true);
     setTimeStoneDialog({ open: false, rolling: false, result: undefined });
   };
 
@@ -68,15 +74,13 @@ export default function App() {
           state={state}
           stats={engine.stats}
           onActivateItem={handleActivateItem}
-          onNewGame={() => setShowSetup(true)}
+          onNewGame={handleNewGame}
         />
       </main>
 
       <SetupDialog
         open={showSetup}
         dismissable={state.gameStarted}
-        defaultCount={state.playerCount}
-        defaultFiftyFifty={state.fiftyFifty}
         onStart={handleStart}
       />
 
@@ -87,6 +91,10 @@ export default function App() {
         onConfirm={handleConfirmTimeStone}
         onCancel={() => setTimeStoneDialog({ open: false, rolling: false, result: undefined })}
       />
+
+      {!showSetup && (
+        <EndGameCelebration state={state} onNewGame={handleNewGame} />
+      )}
     </>
   );
 }

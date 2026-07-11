@@ -1,19 +1,15 @@
-// Game statistics row (attempts / placed / failed).
+// Game statistics row.
 
-export default function Stats({ attempts, placed, failed }) {
+export default function Stats({ attempts, placed }) {
   return (
-    <div className="meta" aria-label="Game statistics">
+    <div className="meta" aria-label="게임 기록">
       <div>
-        <span>Attempts</span>
+        <span>시도</span>
         <strong>{attempts}</strong>
       </div>
       <div>
-        <span>Placed</span>
+        <span>착수</span>
         <strong>{placed}</strong>
-      </div>
-      <div>
-        <span>Failed</span>
-        <strong>{failed}</strong>
       </div>
     </div>
   );

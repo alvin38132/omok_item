@@ -3,7 +3,7 @@
 
 import { useCallback, useMemo, useReducer, useState } from 'react';
 import { gameReducer, initialState } from '../game/reducer.js';
-import { fiftyFiftyRoll, chance } from '../game/random.js';
+import { chance } from '../game/random.js';
 import { directionFromCells, planHitStone } from '../game/hitStone.js';
 import { SIZE } from '../game/constants.js';
 
@@ -12,20 +12,19 @@ export function useGameEngine() {
   const [hitAnimation, setHitAnimation] = useState(null);
   const [timeRewindAnimation, setTimeRewindAnimation] = useState(null);
 
-  const startGame = useCallback((playerCount, fiftyFifty) => {
+  const startGame = useCallback(() => {
     setHitAnimation(null);
     setTimeRewindAnimation(null);
-    dispatch({ type: 'START_GAME', playerCount, fiftyFifty });
+    dispatch({ type: 'START_GAME' });
   }, []);
 
   const clearFlash = useCallback(() => dispatch({ type: 'CLEAR_FLASH' }), []);
 
-  // Place a normal stone. The 50–50 roll (if enabled) is decided here.
+  // Place a normal stone.
   const place = useCallback((cell) => {
     if (!cell) return;
-    const success = !state.fiftyFifty || fiftyFiftyRoll();
-    dispatch({ type: 'PLACE', cell, success });
-  }, [state.fiftyFifty]);
+    dispatch({ type: 'PLACE', cell });
+  }, []);
 
   // Activate a targeting item.
   const activateItem = useCallback((itemId) => {
@@ -131,11 +130,9 @@ export function useGameEngine() {
 
   // Derived stats.
   const stats = useMemo(() => {
-    const placed = state.history.filter((turn) => turn.success).length;
     return {
       attempts: state.history.length,
-      placed,
-      failed: state.history.length - placed,
+      placed: state.history.length,
     };
   }, [state.history]);
 
