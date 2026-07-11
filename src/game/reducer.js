@@ -24,7 +24,7 @@ export const initialState = {
   gameOver: false,
   winningCells: [],
   gameStarted: false,
-  status: { message: '새 게임을 시작하세요.', kind: '' },
+  status: { message: '새 대국을 시작하세요.', kind: '' },
   failedFlash: null,
   turnHistory: [], // board snapshots before completed turns, used by Time Stone
   // Items
@@ -62,12 +62,13 @@ function consume(inventories, player, itemId) {
   };
 }
 
-function rememberTurn(state) {
+function rememberTurn(state, undoEffect = null) {
   return [
     ...state.turnHistory,
     {
       board: state.board,
       historyLength: state.history.length,
+      undoEffect,
     },
   ];
 }
@@ -95,7 +96,7 @@ function resolveOutcome(state, board, placements, player, winMessage) {
         board,
         gameOver: true,
         winningCells: [],
-        status: status('판이 가득 찼습니다. 무승부입니다.'),
+        status: status('둘 곳이 없습니다. 무승부입니다.'),
         ...IDLE_ITEM,
       };
     }
@@ -104,7 +105,7 @@ function resolveOutcome(state, board, placements, player, winMessage) {
     board,
     gameOver: false,
     currentPlayer: next,
-    status: status(`${playerName(player)}이 돌을 놓았습니다. ${playerName(next)} 차례입니다.`),
+    status: status(`${playerName(player)} 착수. ${playerName(next)} 차례입니다.`),
     ...IDLE_ITEM,
   };
 }
@@ -122,7 +123,7 @@ function endTurn(state, board, customStatus) {
   };
 }
 
-const defaultWin = (player) => `${playerName(player)}이 오목을 완성해 승리했습니다!`;
+const defaultWin = (player) => `${playerName(player)}이 오목을 만들었습니다.`;
 
 function findFirstWinner(board, placements) {
   for (const { x, y, player } of placements) {
@@ -145,7 +146,7 @@ function handleKnightMove(state, cell, itemId, offsetTest, shapeName) {
       return {
         ...state,
         status: status(
-          '이미 돌이 있는 자리입니다. 첫 돌을 둘 빈 교차점을 선택하세요.',
+          '이미 돌이 있습니다. 첫 자리는 빈 곳을 고르세요.',
           'error',
         ),
       };
@@ -154,7 +155,7 @@ function handleKnightMove(state, cell, itemId, offsetTest, shapeName) {
       ...state,
       itemState: { firstCell: cell },
       status: status(
-        `첫 돌: (${cell.x}, ${cell.y}). ${shapeName} 위치에 둘 두 번째 자리를 선택하세요.`,
+        `첫 자리: (${cell.x}, ${cell.y}). ${shapeName} 위치의 두 번째 자리를 고르세요.`,
       ),
     };
   }
@@ -168,7 +169,7 @@ function handleKnightMove(state, cell, itemId, offsetTest, shapeName) {
       ...state,
       ...IDLE_ITEM,
       status: status(
-        `잘못된 선택입니다. 두 번째 돌은 ${shapeName} 위치여야 합니다. 행동을 취소했습니다.`,
+        `${shapeName} 위치가 아닙니다. 아이템을 취소했습니다.`,
       ),
     };
   }
@@ -176,7 +177,7 @@ function handleKnightMove(state, cell, itemId, offsetTest, shapeName) {
     return {
       ...state,
       ...IDLE_ITEM,
-      status: status('이미 돌이 있는 자리입니다. 행동을 취소했습니다.', 'error'),
+      status: status('이미 돌이 있습니다. 아이템을 취소했습니다.', 'error'),
     };
   }
 
@@ -201,7 +202,7 @@ function handleAreaBlast(state, cell) {
   if (board[cell.y][cell.x] !== player) {
     return {
       ...state,
-      status: status('내 돌 하나를 선택해야 합니다.', 'error'),
+      status: status('내 돌을 하나 고르세요.', 'error'),
     };
   }
 
@@ -225,7 +226,7 @@ function handleStealStone(state, cell, success) {
   if (!owner || owner === player) {
     return {
       ...state,
-      status: status('상대의 일반 돌을 선택해야 합니다.', 'error'),
+      status: status('상대 돌을 고르세요.', 'error'),
     };
   }
 
@@ -236,7 +237,7 @@ function handleStealStone(state, cell, success) {
     return endTurn(
       { ...state, inventories, turnHistory },
       board,
-      status(`(${cell.x}, ${cell.y})의 상대 돌 변환에 실패했습니다.`, 'error'),
+      status(`(${cell.x}, ${cell.y}) 강탈 실패.`, 'error'),
     );
   }
 
@@ -259,7 +260,7 @@ function handleStealStone(state, cell, success) {
   return endTurn(
     { ...state, inventories, turnHistory },
     next,
-    status(`성공했습니다. (${cell.x}, ${cell.y})의 상대 돌을 내 돌로 바꿨습니다.`),
+    status(`강탈 성공. (${cell.x}, ${cell.y})의 돌이 바뀌었습니다.`),
   );
 }
 
@@ -270,14 +271,14 @@ function handleHitStone(state, cell) {
     if (board[cell.y][cell.x]) {
       return {
         ...state,
-        status: status('알까기 시작점으로 빈 교차점을 선택하세요.', 'error'),
+        status: status('알까기 시작점은 빈 곳이어야 합니다.', 'error'),
       };
     }
     return {
       ...state,
       itemState: { firstCell: cell },
       status: status(
-        `시작점: (${cell.x}, ${cell.y}). 가로 또는 세로 방향을 선택하세요.`,
+        `시작점: (${cell.x}, ${cell.y}). 밀 방향을 가로 또는 세로로 고르세요.`,
       ),
     };
   }
@@ -288,7 +289,7 @@ function handleHitStone(state, cell) {
     return {
       ...state,
       status: status(
-        '시작점과 같은 행 또는 열에서 방향을 선택하세요.',
+        '시작점과 같은 줄에서 방향을 고르세요.',
         'error',
       ),
     };
@@ -296,7 +297,7 @@ function handleHitStone(state, cell) {
 
   return {
     ...state,
-    status: status('돌을 밀어내는 중입니다. 모든 돌이 멈추면 차례가 끝납니다.'),
+    status: status('돌을 밀고 있습니다.'),
   };
 }
 
@@ -304,7 +305,14 @@ function commitHitStone(state, plan) {
   const player = state.currentPlayer;
   const next = plan.board;
   const inventories = consume(state.inventories, player, 'hit_stone');
-  const turnHistory = rememberTurn(state);
+  const turnHistory = rememberTurn(state, {
+    type: 'hit_stone',
+    plan: {
+      start: plan.start,
+      direction: plan.direction,
+      segments: plan.segments,
+    },
+  });
   const history = [...state.history, { x: plan.start.x, y: plan.start.y, player, success: true }];
   const winner = findFirstWinner(next, plan.placements);
 
@@ -317,7 +325,7 @@ function commitHitStone(state, plan) {
       turnHistory,
       gameOver: true,
       winningCells: winner.line,
-      status: status(`${playerName(winner.player)}이 오목을 완성해 승리했습니다!`, 'win'),
+      status: status(`${playerName(winner.player)}이 오목을 만들었습니다.`, 'win'),
       ...IDLE_ITEM,
     };
   }
@@ -331,7 +339,7 @@ function commitHitStone(state, plan) {
       turnHistory,
       gameOver: true,
       winningCells: [],
-      status: status('판이 가득 찼습니다. 무승부입니다.'),
+      status: status('둘 곳이 없습니다. 무승부입니다.'),
       ...IDLE_ITEM,
     };
   }
@@ -339,7 +347,7 @@ function commitHitStone(state, plan) {
   return endTurn(
     { ...state, history, inventories, turnHistory },
     next,
-    status('알까기가 끝났습니다. 마지막 돌은 바깥으로 밀려 제거되었습니다.'),
+    status('알까기가 끝났습니다. 마지막 돌은 판 밖으로 나갔습니다.'),
   );
 }
 
@@ -355,7 +363,7 @@ function handleTimeStone(state, roll) {
     return endTurn(
       { ...state, inventories, failedFlash: null },
       state.board,
-      status('시간 되돌리기가 실패했습니다. 되돌린 차례가 없습니다.', 'error'),
+      status('시간석 실패. 되돌리지 못했습니다.', 'error'),
     );
   }
 
@@ -368,7 +376,7 @@ function handleTimeStone(state, roll) {
       inventories,
       currentPlayer: nextPlayerAfterUse,
       failedFlash: null,
-      status: status('시간 되돌리기가 숫자를 냈지만 되돌릴 이전 차례가 없습니다.'),
+      status: status('되돌릴 차례가 없습니다.'),
       ...IDLE_ITEM,
     };
   }
@@ -389,7 +397,7 @@ function handleTimeStone(state, roll) {
     gameOver: false,
     winningCells: [],
     failedFlash: null,
-    status: status(`시간 되돌리기 결과: ${roll}. ${label}를 되돌렸습니다. ${playerName(nextPlayerAfterUse)} 차례입니다.`),
+    status: status(`시간석 ${roll}. ${label}를 되돌렸습니다. ${playerName(nextPlayerAfterUse)} 차례입니다.`),
     ...IDLE_ITEM,
   };
 }
@@ -408,7 +416,7 @@ export function gameReducer(state, action) {
         inventories: buildInventories(),
         turnHistory: [],
         session: state.session + 1,
-        status: status('흑부터 시작합니다. 빈 교차점을 선택해 돌을 놓으세요.'),
+        status: status('흑부터 둡니다. 빈 교차점을 고르세요.'),
       };
     }
 
@@ -422,7 +430,7 @@ export function gameReducer(state, action) {
       if (state.board[cell.y][cell.x]) {
         return {
           ...state,
-          status: status('이미 돌이 있는 자리입니다. 다른 곳을 선택하세요.', 'error'),
+          status: status('이미 돌이 있습니다. 다른 곳을 고르세요.', 'error'),
         };
       }
 
@@ -446,7 +454,7 @@ export function gameReducer(state, action) {
           ...state,
           ...IDLE_ITEM,
           status: status(
-            `${playerName(state.currentPlayer)} 차례입니다. 빈 교차점을 선택하세요.`,
+            `${playerName(state.currentPlayer)} 차례입니다. 빈 곳을 고르세요.`,
           ),
         };
       }
@@ -456,7 +464,7 @@ export function gameReducer(state, action) {
         activeItem: action.itemId,
         itemState: {},
         status: status(
-          `[아이템 활성화] ${item.desc} (아이템을 다시 누르면 취소)`,
+          `${item.name}: ${item.desc} 다시 누르면 취소합니다.`,
         ),
       };
     }
@@ -467,7 +475,7 @@ export function gameReducer(state, action) {
         ...state,
         ...IDLE_ITEM,
         status: status(
-          `${playerName(state.currentPlayer)} 차례입니다. 빈 교차점을 선택하세요.`,
+          `${playerName(state.currentPlayer)} 차례입니다. 빈 곳을 고르세요.`,
         ),
       };
 
@@ -477,14 +485,14 @@ export function gameReducer(state, action) {
     case 'BEGIN_TIME_STONE_ANIMATION':
       return {
         ...state,
-        status: status('시간 되돌리기로 시간을 되감는 중입니다. 제거될 돌이 사라지고 있습니다.'),
+        status: status('시간을 되감고 있습니다.'),
       };
 
     case 'BEGIN_HIT_STONE_ANIMATION':
       if (state.activeItem !== 'hit_stone') return state;
       return {
         ...state,
-        status: status('돌을 밀어내는 중입니다. 모든 돌이 멈추면 차례가 끝납니다.'),
+        status: status('돌을 밀고 있습니다.'),
       };
 
     case 'RESOLVE_HIT_STONE':

@@ -9,7 +9,7 @@ const TUTORIAL_PAGES = [
   {
     id: 'knight_move',
     title: itemName('knight_move'),
-    guide: '첫 돌을 둔 뒤 가까운 날일자 칸에 두 번째 돌이 놓입니다.',
+    guide: '빈 곳 두 칸을 날일자 간격으로 고릅니다.',
     stones: [
       { x: 3, y: 3, color: 'black', className: 'demo-anchor' },
       { x: 4, y: 1, color: 'black', className: 'demo-appear' },
@@ -22,7 +22,7 @@ const TUTORIAL_PAGES = [
   {
     id: 'big_knight_move',
     title: itemName('big_knight_move'),
-    guide: '더 멀리 뻗는 날일자로, 시작 돌에서 한 칸 더 떨어진 곳에 이어 둡니다.',
+    guide: '일반 날일자보다 한 칸 더 먼 자리에 둡니다.',
     stones: [
       { x: 2, y: 4, color: 'black', className: 'demo-anchor' },
       { x: 5, y: 3, color: 'black', className: 'demo-appear' },
@@ -35,7 +35,7 @@ const TUTORIAL_PAGES = [
   {
     id: 'area_blast',
     title: itemName('area_blast'),
-    guide: '내 돌 하나를 중심으로 잡으면 주변 8칸까지 한 번에 사라집니다.',
+    guide: '내 돌 하나와 그 주변 8칸을 비웁니다.',
     stones: [
       { x: 3, y: 3, color: 'black', className: 'demo-blast-center' },
       { x: 2, y: 2, color: 'white', className: 'demo-blast-away' },
@@ -52,7 +52,7 @@ const TUTORIAL_PAGES = [
   {
     id: 'steal_stone',
     title: itemName('steal_stone'),
-    guide: '상대 돌 하나를 노립니다. 성공하면 그 자리가 내 돌로 바뀝니다.',
+    guide: '상대 돌 하나를 노립니다. 성공하면 내 돌로 바뀝니다.',
     stones: [
       { x: 1, y: 3, color: 'white' },
       { x: 5, y: 3, color: 'black', className: 'demo-convert' },
@@ -62,7 +62,7 @@ const TUTORIAL_PAGES = [
   {
     id: 'time_stone',
     title: itemName('time_stone'),
-    guide: '주사위 결과에 따라 최근 차례의 돌들이 되감기처럼 사라집니다.',
+    guide: '주사위 결과만큼 최근 차례를 되돌립니다.',
     stones: [
       { x: 2, y: 4, color: 'black' },
       { x: 3, y: 4, color: 'white', className: 'demo-rewind-one' },
@@ -74,7 +74,7 @@ const TUTORIAL_PAGES = [
   {
     id: 'hit_stone',
     title: itemName('hit_stone'),
-    guide: '흰 돌을 향해 떨어진 곳에 검은 돌을 놓고 방향을 정하면, 흰 돌이 밀려납니다.',
+    guide: '빈 곳에서 가로 또는 세로 방향으로 돌을 밀어냅니다.',
     stones: [
       { x: 4, y: 3, color: 'white', className: 'demo-hit-white' },
       { x: 1, y: 3, color: 'black', className: 'demo-hit-black' },
@@ -161,7 +161,7 @@ export default function SetupDialog({ open, dismissable, onStart }) {
       <form className="setup" onSubmit={handleSubmit}>
         <div className="tutorial-heading">
           <div>
-            <span className="small-label">아이템 튜토리얼</span>
+            <span className="small-label">아이템 안내</span>
             <h2 id="setupTitle">{page.title}</h2>
           </div>
           <span className="tutorial-counter">
@@ -196,7 +196,7 @@ export default function SetupDialog({ open, dismissable, onStart }) {
           </button>
           {isFinalTutorialPage ? (
             <button id="startGame" type="submit">
-              게임 시작
+              대국 시작
             </button>
           ) : (
             <button type="button" onClick={handleNext}>
@@ -204,7 +204,7 @@ export default function SetupDialog({ open, dismissable, onStart }) {
             </button>
           )}
         </div>
-        <p className="limit-note">새 게임은 항상 2인전으로 시작합니다.</p>
+        <p className="limit-note">두 사람이 번갈아 둡니다.</p>
       </form>
     </dialog>
   );
