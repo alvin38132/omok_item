@@ -38,10 +38,10 @@ export default function TimeStoneConfirmDialog({
   }, [rolling, result]);
 
   const resultText = result === undefined
-    ? '세 면은 실패, 나머지 면은 1, 2, 3차례를 되돌립니다.'
+    ? '실패 면이 절반입니다. 숫자가 나오면 그만큼 되돌립니다.'
     : result
-      ? `${result}이 나왔습니다. ${result}차례를 되돌립니다.`
-      : '실패가 나왔습니다. 되돌릴 차례가 없습니다.';
+      ? `${result}이 나왔습니다. ${result}차례 되돌립니다.`
+      : '실패입니다. 되돌리지 않습니다.';
 
   return (
     <dialog
@@ -53,12 +53,12 @@ export default function TimeStoneConfirmDialog({
       }}
     >
       <form className="setup item-confirm" onSubmit={(event) => event.preventDefault()}>
-        <h2 id="timeStoneTitle">시간 되돌리기를 사용할까요?</h2>
+        <h2 id="timeStoneTitle">시간석을 사용할까요?</h2>
         <div className="dice-stage" aria-live="polite">
           <div className={`dice${rolling ? ' rolling' : ''}`}>
             <span>{face}</span>
           </div>
-          <p>{rolling ? '굴리는 중...' : resultText}</p>
+          <p>{rolling ? '주사위를 굴리는 중...' : resultText}</p>
         </div>
         <div className="dialog-actions">
           <button className="secondary" type="button" disabled={rolling} onClick={onCancel}>

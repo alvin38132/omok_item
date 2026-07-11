@@ -15,8 +15,8 @@ export default function TurnCard({ currentPlayer, gameOver }) {
         }}
       />
       <div>
-        <div className="small-label">현재 차례</div>
-        <div id="turnText">{gameOver ? '게임 종료' : playerName(currentPlayer)}</div>
+        <div className="small-label">차례</div>
+        <div id="turnText">{gameOver ? '종료' : `${playerName(currentPlayer)} 차례`}</div>
       </div>
     </div>
   );

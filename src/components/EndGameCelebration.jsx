@@ -42,9 +42,9 @@ export default function EndGameCelebration({ state, onNewGame }) {
   const winningCell = state.winningCells[0];
   const winner = winningCell ? state.board[winningCell.y][winningCell.x] : null;
   const winnerLabel = winner ? playerLabel(winner) : '';
-  const title = winner ? `${winnerLabel} 승리!` : '무승부';
+  const title = winner ? `${winnerLabel} 승` : '무승부';
   const subtitle = winner
-    ? `${winnerLabel}이 오목을 완성했습니다.`
+    ? `${winnerLabel}이 다섯 줄을 만들었습니다.`
     : '더 이상 둘 곳이 없습니다.';
 
   return (
@@ -69,12 +69,12 @@ export default function EndGameCelebration({ state, onNewGame }) {
             {winnerLabel}
           </div>
         )}
-        <p className="small-label">게임 종료</p>
+        <p className="small-label">대국 종료</p>
         <h2 id="endgame-title">{title}</h2>
         <p>{subtitle}</p>
         <div className="endgame-actions">
           <button type="button" onClick={onNewGame}>
-            새 게임
+            새 대국
           </button>
           <button type="button" className="secondary" onClick={() => setDismissed(true)}>
             판 보기

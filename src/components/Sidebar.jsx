@@ -7,18 +7,12 @@ import ItemsPanel from './ItemsPanel.jsx';
 export default function Sidebar({ state, onActivateItem, onNewGame }) {
   const { gameStarted, currentPlayer, gameOver, status } = state;
 
-  const kicker = gameStarted ? '2인 아이템 오목' : '새 게임 대기 중';
+  const kicker = gameStarted ? '대국 진행 중' : '대국 준비';
 
   return (
     <aside className="sidebar">
       <p className="kicker">{kicker}</p>
-      <h1>
-        아이템
-        <br />
-        오목
-      </h1>
-
-      <br />
+      <h1>아이템 오목</h1>
 
       <TurnCard currentPlayer={currentPlayer} gameOver={gameOver} />
 
@@ -26,10 +20,8 @@ export default function Sidebar({ state, onActivateItem, onNewGame }) {
         {status.message}
       </div>
 
-      <br />
-
-      <div className="small-label legend-title" style={{ marginTop: 15 }}>
-        아이템 (게임당 1회)
+      <div className="small-label legend-title">
+        보유 아이템
       </div>
       {gameStarted && (
         <ItemsPanel
@@ -42,7 +34,7 @@ export default function Sidebar({ state, onActivateItem, onNewGame }) {
 
       <div className="actions">
         <button id="newGame" type="button" onClick={onNewGame}>
-          새 게임
+          새 대국
         </button>
       </div>
     </aside>
