@@ -66,13 +66,14 @@ export default function App() {
           state={state}
           hitAnimation={engine.hitAnimation}
           timeRewindAnimation={engine.timeRewindAnimation}
+          itemAnimation={engine.itemAnimation}
           onCellClick={engine.clickCell}
           onHitAnimationComplete={engine.finishHitAnimation}
           onTimeRewindAnimationComplete={engine.finishTimeRewindAnimation}
+          onItemAnimationComplete={engine.finishItemAnimation}
         />
         <Sidebar
           state={state}
-          stats={engine.stats}
           onActivateItem={handleActivateItem}
           onNewGame={handleNewGame}
         />

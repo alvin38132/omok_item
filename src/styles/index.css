@@ -275,32 +275,6 @@ h1 {
   color: rgba(19, 21, 27, 0.8);
 }
 
-.meta {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 7px;
-  margin: 16px 0;
-}
-
-.meta div {
-  padding: 8px;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.meta span {
-  display: block;
-  color: var(--muted);
-  font-size: 0.63rem;
-  text-transform: uppercase;
-}
-
-.meta strong {
-  display: block;
-  margin-top: 2px;
-  font-size: 0.76rem;
-}
-
 .actions {
   margin-top: auto;
 }

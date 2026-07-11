@@ -62,12 +62,13 @@ function consume(inventories, player, itemId) {
   };
 }
 
-function rememberTurn(state) {
+function rememberTurn(state, undoEffect = null) {
   return [
     ...state.turnHistory,
     {
       board: state.board,
       historyLength: state.history.length,
+      undoEffect,
     },
   ];
 }
@@ -304,7 +305,14 @@ function commitHitStone(state, plan) {
   const player = state.currentPlayer;
   const next = plan.board;
   const inventories = consume(state.inventories, player, 'hit_stone');
-  const turnHistory = rememberTurn(state);
+  const turnHistory = rememberTurn(state, {
+    type: 'hit_stone',
+    plan: {
+      start: plan.start,
+      direction: plan.direction,
+      segments: plan.segments,
+    },
+  });
   const history = [...state.history, { x: plan.start.x, y: plan.start.y, player, success: true }];
   const winner = findFirstWinner(next, plan.placements);
 

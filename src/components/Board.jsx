@@ -15,13 +15,43 @@ import {
 const CANVAS_SIZE = 950;
 const CENTER_CELL = Math.floor(SIZE / 2);
 
+function isBoardCell(cell) {
+  return cell && cell.x >= 0 && cell.x < SIZE && cell.y >= 0 && cell.y < SIZE;
+}
+
+function uniqueCells(cells) {
+  const seen = new Set();
+  return cells.filter((cell) => {
+    if (!isBoardCell(cell)) return false;
+    const key = `${cell.x},${cell.y}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function reverseHitSegments(plan) {
+  return plan.segments.slice().reverse().map((segment) => ({
+    player: segment.player,
+    from: segment.to,
+    to: segment.from,
+    direction: {
+      dx: -plan.direction.dx,
+      dy: -plan.direction.dy,
+    },
+    fromEdge: segment.removeAtEdge,
+  }));
+}
+
 export default function Board({
   state,
   hitAnimation,
   timeRewindAnimation,
+  itemAnimation,
   onCellClick,
   onHitAnimationComplete,
   onTimeRewindAnimationComplete,
+  onItemAnimationComplete,
 }) {
   const canvasRef = useRef(null);
   const cameraRef = useRef({ ...DEFAULT_CAMERA });
@@ -31,6 +61,7 @@ export default function Board({
   const suppressClickRef = useRef(false);
   const hitAnimationFrameRef = useRef(null);
   const timeRewindFrameRef = useRef(null);
+  const itemEffectFrameRef = useRef(null);
 
   // Latest game state, readable from imperative event handlers.
   const viewRef = useRef(state);
@@ -53,6 +84,7 @@ export default function Board({
       itemState: s.itemState,
       hitAnimationFrame: hitAnimationFrameRef.current,
       timeRewindFrame: timeRewindFrameRef.current,
+      itemEffectFrame: itemEffectFrameRef.current,
     });
   };
 
@@ -101,6 +133,11 @@ export default function Board({
         .map((s) => ({ ...s.to, player: s.player }));
 
       return {
+        progress,
+        segment: {
+          ...segment,
+          direction: hitAnimation.plan.direction,
+        },
         hiddenCells,
         settledStones,
         movingStone: {
@@ -126,8 +163,6 @@ export default function Board({
         segmentStartedAt = timestamp;
         if (segmentIndex >= segments.length) {
           finished = true;
-          hitAnimationFrameRef.current = null;
-          draw();
           onHitAnimationComplete(hitAnimation.id);
           return;
         }
@@ -154,14 +189,85 @@ export default function Board({
     let frameId = 0;
     let startedAt = 0;
     let finished = false;
-    const duration = 1000;
+
+    if (timeRewindAnimation.reverseHitPlan) {
+      let segmentIndex = 0;
+      let segmentStartedAt = 0;
+      const segments = reverseHitSegments(timeRewindAnimation.reverseHitPlan);
+      const hitCells = uniqueCells(segments.flatMap((segment) => [segment.from, segment.to]));
+      const hiddenCells = uniqueCells([...timeRewindAnimation.hiddenCells, ...hitCells]);
+
+      const durationFor = (segment) => {
+        const distance = Math.hypot(segment.to.x - segment.from.x, segment.to.y - segment.from.y);
+        return Math.max(170, Math.min(720, distance * 62));
+      };
+
+      const buildReverseHitFrame = (segment, progress) => ({
+        mode: 'reverse_hit',
+        progress,
+        segment,
+        hiddenCells,
+        hitCells,
+        fadingStones: timeRewindAnimation.fadingStones,
+        appearingStones: timeRewindAnimation.appearingStones,
+        pendingStones: segments
+          .slice(segmentIndex + 1)
+          .filter((s) => isBoardCell(s.from))
+          .map((s) => ({ ...s.from, player: s.player })),
+        settledStones: segments
+          .slice(0, segmentIndex)
+          .filter((s) => isBoardCell(s.to))
+          .map((s) => ({ ...s.to, player: s.player })),
+        movingStone: {
+          player: segment.player,
+          x: segment.from.x + (segment.to.x - segment.from.x) * progress,
+          y: segment.from.y + (segment.to.y - segment.from.y) * progress,
+          fromEdge: segment.fromEdge,
+        },
+      });
+
+      const stepReverseHit = (timestamp) => {
+        if (finished) return;
+        if (!segmentStartedAt) segmentStartedAt = timestamp;
+
+        const segment = segments[segmentIndex];
+        const duration = durationFor(segment);
+        const progress = Math.min(1, (timestamp - segmentStartedAt) / duration);
+        timeRewindFrameRef.current = buildReverseHitFrame(segment, progress);
+        draw();
+
+        if (progress >= 1) {
+          segmentIndex += 1;
+          segmentStartedAt = timestamp;
+          if (segmentIndex >= segments.length) {
+            finished = true;
+            onTimeRewindAnimationComplete(timeRewindAnimation.id);
+            return;
+          }
+        }
+
+        frameId = requestAnimationFrame(stepReverseHit);
+      };
+
+      frameId = requestAnimationFrame(stepReverseHit);
+      return () => {
+        finished = true;
+        cancelAnimationFrame(frameId);
+      };
+    }
+
+    const duration = 1100;
 
     const step = (timestamp) => {
       if (finished) return;
       if (!startedAt) startedAt = timestamp;
       const progress = Math.min(1, (timestamp - startedAt) / duration);
       timeRewindFrameRef.current = {
+        mode: 'diff',
         fadingStones: timeRewindAnimation.fadingStones,
+        appearingStones: timeRewindAnimation.appearingStones,
+        hiddenCells: timeRewindAnimation.hiddenCells,
+        progress,
         opacity: 1 - progress,
       };
       draw();
@@ -183,6 +289,47 @@ export default function Board({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeRewindAnimation]);
+
+  useEffect(() => {
+    if (!itemAnimation) {
+      itemEffectFrameRef.current = null;
+      draw();
+      return undefined;
+    }
+
+    let frameId = 0;
+    let startedAt = 0;
+    let finished = false;
+    const duration = itemAnimation.duration || 800;
+
+    const step = (timestamp) => {
+      if (finished) return;
+      if (!startedAt) startedAt = timestamp;
+      const progress = Math.min(1, (timestamp - startedAt) / duration);
+      itemEffectFrameRef.current = {
+        ...itemAnimation,
+        progress,
+      };
+      draw();
+
+      if (progress >= 1) {
+        finished = true;
+        itemEffectFrameRef.current = null;
+        draw();
+        onItemAnimationComplete(itemAnimation.id);
+        return;
+      }
+
+      frameId = requestAnimationFrame(step);
+    };
+
+    frameId = requestAnimationFrame(step);
+    return () => {
+      finished = true;
+      cancelAnimationFrame(frameId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemAnimation]);
 
   // Reset the camera to center on each new game.
   useEffect(() => {
