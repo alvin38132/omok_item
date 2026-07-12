@@ -1,0 +1,352 @@
+# Omok Multiplayer Server API
+
+## 개요
+
+- **서버 URL**: `http://localhost:3001`
+- **WebSocket URL**: `ws://localhost:3001`
+- **포트**: 3001
+
+## REST API
+
+### POST /api/games - 게임 생성
+
+새로운 게임 세션을 생성합니다.
+
+**요청:**
+```json
+{
+  "playerCount": 2
+}
+```
+
+**응답:**
+```json
+{
+  "sessionId": "session-1",
+  "state": { ... }
+}
+```
+
+**파라미터:**
+- `playerCount` (number, 기본값: 2): 플레이어 수 (2-12)
+
+**응답 설명:**
+- `sessionId`: 게임 세션 ID (WebSocket 연결 시 사용)
+- `state`: 초기 게임 상태 (reducer의 initialState)
+
+---
+
+## WebSocket 이벤트
+
+### 클라이언트 → 서버
+
+#### join - 게임 입장
+
+게임 세션에 플레이어로 참가합니다.
+
+**발송:**
+```javascript
+socket.emit('join', { sessionId, name }, (response) => {
+  // callback
+})
+```
+
+**파라미터:**
+- `sessionId` (string): POST /api/games에서 받은 sessionId
+- `name` (string): 플레이어 이름
+
+**응답 콜백:**
+```json
+{
+  "playerNumber": 1,
+  "state": { ... }
+}
+```
+
+또는 에러:
+```json
+{
+  "error": "Game not found"
+}
+```
+
+---
+
+#### action - 액션 전송
+
+게임 상태를 변경하는 액션을 전송합니다. 서버에서 reducer를 실행하고 모든 플레이어에게 결과를 브로드캐스트합니다.
+
+**발송:**
+```javascript
+socket.emit('action', { sessionId, action }, (response) => {
+  // callback
+})
+```
+
+**파라미터:**
+- `sessionId` (string): 게임 세션 ID
+- `action` (object): 게임 액션 (reducer에 전달될 액션)
+
+**응답 콜백:**
+```json
+{
+  "ok": true
+}
+```
+
+또는 에러:
+```json
+{
+  "error": "Game not found"
+}
+```
+
+**가능한 액션 타입:**
+
+```javascript
+// 게임 시작
+{ type: 'START_GAME', playerCount: 2, fiftyFifty: false }
+
+// 돌 놓기
+{ type: 'PLACE', cell: { x: 9, y: 9 }, success: true }
+
+// 아이템 활성화
+{ type: 'ACTIVATE_ITEM', itemId: 'knight_move' }
+
+// 아이템 취소
+{ type: 'CANCEL_ITEM' }
+
+// 셀 클릭 (아이템 사용)
+{ type: 'ITEM_CLICK', cell: { x: 9, y: 9 }, roll: { success: true } }
+
+// Time Stone 사용
+{ type: 'USE_TIME_STONE', roll: 3 }
+
+// Hit Stone 애니메이션 시작
+{ type: 'BEGIN_HIT_STONE_ANIMATION' }
+
+// Hit Stone 해결
+{ type: 'RESOLVE_HIT_STONE', plan: { ... } }
+```
+
+---
+
+### 서버 → 클라이언트
+
+#### state_updated - 상태 업데이트
+
+액션이 처리되어 게임 상태가 변경되었습니다.
+
+**수신:**
+```javascript
+socket.on('state_updated', (state) => {
+  // state: 현재 게임 상태 (reducer 상태)
+})
+```
+
+**상태 구조:**
+```javascript
+{
+  board: [],                    // 19x19 게임판 (0 = 빈칸, 1-12 = 플레이어)
+  playerCount: 2,
+  currentPlayer: 1,
+  history: [],                  // 턴 히스토리 [{ x, y, player, success }]
+  gameOver: false,
+  winningCells: [],            // 승리한 돌들의 좌표
+  gameStarted: true,
+  status: {
+    message: '플레이어 1의 차례입니다.',
+    kind: 'win' | 'error' | ''
+  },
+  failedFlash: null,           // { x, y } | null
+  turnHistory: [],             // 이전 상태 스냅샷
+  inventories: {               // { [player]: { [itemId]: available } }
+    1: {
+      knight_move: true,
+      big_knight_move: true,
+      area_blast: true,
+      steal_stone: true,
+      hit_stone: true,
+      time_stone: true
+    }
+  },
+  activeItem: null,            // 현재 활성화된 아이템
+  itemState: {},               // 아이템 상태 (예: { firstCell })
+  session: 1
+}
+```
+
+---
+
+#### players_updated - 플레이어 목록 업데이트
+
+플레이어가 입장하거나 퇴장했을 때 발생합니다.
+
+**수신:**
+```javascript
+socket.on('players_updated', (players) => {
+  // players: 플레이어 배열
+})
+```
+
+**플레이어 배열:**
+```json
+[
+  {
+    "playerNumber": 1,
+    "socketId": "socket-id-123",
+    "name": "Player 1"
+  },
+  {
+    "playerNumber": 2,
+    "socketId": "socket-id-456",
+    "name": "Player 2"
+  }
+]
+```
+
+---
+
+#### game_over - 게임 종료
+
+게임이 종료되었습니다 (승리 또는 무승부).
+
+**수신:**
+```javascript
+socket.on('game_over', (data) => {
+  // data: 게임 종료 정보
+})
+```
+
+**응답 구조:**
+```json
+{
+  "winningCells": [
+    { "x": 9, "y": 9 },
+    { "x": 10, "y": 9 },
+    { "x": 11, "y": 9 },
+    { "x": 12, "y": 9 },
+    { "x": 13, "y": 9 }
+  ],
+  "status": {
+    "message": "Player 1 connects five and wins!",
+    "kind": "win"
+  },
+  "finalState": { ... }
+}
+```
+
+---
+
+## 데이터 타입
+
+### Cell
+```javascript
+{
+  x: number,  // 0-18
+  y: number   // 0-18
+}
+```
+
+### Item IDs
+```javascript
+'knight_move'      // 날일자 (1칸 x, 2칸 y 이동)
+'big_knight_move'  // 눈목자 (1칸 x, 3칸 y 이동)
+'area_blast'       // 폭발 (중심 주변 3x3 제거)
+'steal_stone'      // 돌 빼앗기 (30% 성공율)
+'hit_stone'        // 알까기 (방향 선택)
+'time_stone'       // 시간 되돌리기 (주사위)
+```
+
+---
+
+## 사용 예제
+
+### 게임 시작 플로우
+
+**1단계: 게임 생성**
+```javascript
+const res = await fetch('http://localhost:3001/api/games', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ playerCount: 2 })
+});
+const { sessionId, state } = await res.json();
+```
+
+**2단계: WebSocket 연결 및 게임 입장**
+```javascript
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:3001');
+
+socket.on('connect', () => {
+  socket.emit('join', { sessionId, name: 'Player 1' }, (response) => {
+    if (response.error) {
+      console.error('Failed to join:', response.error);
+      return;
+    }
+    console.log('Joined as Player', response.playerNumber);
+    console.log('Initial state:', response.state);
+  });
+});
+```
+
+**3단계: 이벤트 수신**
+```javascript
+socket.on('state_updated', (state) => {
+  console.log('Game state updated:', state);
+  // UI 업데이트
+});
+
+socket.on('players_updated', (players) => {
+  console.log('Players:', players);
+  // 플레이어 목록 업데이트
+});
+
+socket.on('game_over', (data) => {
+  console.log('Game over:', data.status.message);
+  // 게임 종료 처리
+});
+```
+
+**4단계: 액션 전송**
+```javascript
+// 돌 놓기
+socket.emit('action', {
+  sessionId,
+  action: { type: 'PLACE', cell: { x: 9, y: 9 }, success: true }
+}, (response) => {
+  if (response.ok) {
+    console.log('Action sent successfully');
+  }
+});
+
+// 아이템 활성화
+socket.emit('action', {
+  sessionId,
+  action: { type: 'ACTIVATE_ITEM', itemId: 'knight_move' }
+}, (response) => {
+  if (response.ok) {
+    console.log('Item activated');
+  }
+});
+```
+
+---
+
+## 주의사항
+
+- 모든 액션은 서버에서 검증되고 결과는 모든 플레이어에게 브로드캐스트됩니다.
+- `state_updated` 이벤트를 받은 상태가 **현재 게임의 참 상태**입니다.
+- 클라이언트의 로컬 상태가 서버 상태와 다를 수 있으므로, 서버에서 온 상태로 항상 동기화하세요.
+- 게임판은 19×19이므로 좌표는 0-18 범위입니다.
+- `playerNumber`는 1부터 시작하며, 플레이어마다 고유합니다.
+
+---
+
+## 배포 환경
+
+프로덕션에서는:
+- `http://localhost:3001` → `https://your-domain.com`
+- `ws://localhost:3001` → `wss://your-domain.com`
