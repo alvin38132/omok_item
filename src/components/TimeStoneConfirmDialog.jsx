@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-const ROLL_FACES = ['FAIL', '1', 'FAIL', '2', 'FAIL', '3'];
+const ROLL_FACES = ['실패', '1', '실패', '2', '실패', '3'];
 
 export default function TimeStoneConfirmDialog({
   open,
@@ -24,7 +24,7 @@ export default function TimeStoneConfirmDialog({
 
   useEffect(() => {
     if (!rolling) {
-      if (result !== undefined) setFace(result ?? 'FAIL');
+      if (result !== undefined) setFace(result ?? '실패');
       return undefined;
     }
 
@@ -38,10 +38,10 @@ export default function TimeStoneConfirmDialog({
   }, [rolling, result]);
 
   const resultText = result === undefined
-    ? 'Three sides fail. The other sides rewind 1, 2, or 3 turns.'
+    ? '실패 면이 절반입니다. 숫자가 나오면 그만큼 되돌립니다.'
     : result
-      ? `Rolled ${result}. Rewinding ${result} turn${result === 1 ? '' : 's'}.`
-      : 'Rolled FAIL. No turns rewind.';
+      ? `${result}이 나왔습니다. ${result}차례 되돌립니다.`
+      : '실패입니다. 되돌리지 않습니다.';
 
   return (
     <dialog
@@ -53,19 +53,19 @@ export default function TimeStoneConfirmDialog({
       }}
     >
       <form className="setup item-confirm" onSubmit={(event) => event.preventDefault()}>
-        <h2 id="timeStoneTitle">Use Time Stone?</h2>
+        <h2 id="timeStoneTitle">시간석을 사용할까요?</h2>
         <div className="dice-stage" aria-live="polite">
           <div className={`dice${rolling ? ' rolling' : ''}`}>
             <span>{face}</span>
           </div>
-          <p>{rolling ? 'Rolling...' : resultText}</p>
+          <p>{rolling ? '주사위를 굴리는 중...' : resultText}</p>
         </div>
         <div className="dialog-actions">
           <button className="secondary" type="button" disabled={rolling} onClick={onCancel}>
-            Cancel
+            취소
           </button>
           <button type="button" disabled={rolling || result !== undefined} onClick={onConfirm}>
-            Roll die
+            주사위 굴리기
           </button>
         </div>
       </form>

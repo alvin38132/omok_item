@@ -1,9 +1,9 @@
 {
-  "name": "rainbow-omok",
+  "name": "item-omok",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Multiplayer Omok (Gomoku) with one-shot power-up items, built with React + Vite.",
+  "description": "2인 아이템 오목 게임",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

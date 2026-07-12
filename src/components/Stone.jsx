@@ -2,14 +2,16 @@
 
 import { playerColor } from '../game/colors.js';
 
+const playerName = (player) => (player === 1 ? '흑' : '백');
+
 export default function Stone({ player, className = 'legend-stone' }) {
   return (
     <span
       className={className}
-      style={{ background: playerColor(player) }}
-      aria-label={`Player ${player}`}
-    >
-      {player}
-    </span>
+      style={{
+        background: playerColor(player),
+      }}
+      aria-label={playerName(player)}
+    />
   );
 }

@@ -8,25 +8,24 @@ import { ITEMS_BY_ID } from './items.js';
 import {
   createBoard,
   cloneBoard,
-  clampCount,
   nextPlayer,
   inBounds,
   isBoardFull,
   findWinningLine,
 } from './logic.js';
 import { directionFromCells } from './hitStone.js';
+import { PLAYER_COUNT } from './constants.js';
 
 export const initialState = {
   board: createBoard(),
-  playerCount: 2,
+  playerCount: PLAYER_COUNT,
   currentPlayer: 1,
   history: [], // [{ x, y, player, success }]
   gameOver: false,
   winningCells: [],
-  fiftyFifty: false,
   gameStarted: false,
-  status: { message: 'Choose your game settings to begin.', kind: '' },
-  failedFlash: null, // { x, y } | null
+  status: { message: '새 대국을 시작하세요.', kind: '' },
+  failedFlash: null,
   turnHistory: [], // board snapshots before completed turns, used by Time Stone
   // Items
   inventories: {}, // { [player]: { [itemId]: available } }
@@ -43,9 +42,13 @@ function status(message, kind = '') {
   return { message, kind };
 }
 
-function buildInventories(playerCount) {
+function playerName(player) {
+  return player === 1 ? '흑' : '백';
+}
+
+function buildInventories() {
   const inventories = {};
-  for (let p = 1; p <= playerCount; p++) {
+  for (let p = 1; p <= PLAYER_COUNT; p++) {
     inventories[p] = {};
     for (const id of Object.keys(ITEMS_BY_ID)) inventories[p][id] = true;
   }
@@ -59,12 +62,13 @@ function consume(inventories, player, itemId) {
   };
 }
 
-function rememberTurn(state) {
+function rememberTurn(state, undoEffect = null) {
   return [
     ...state.turnHistory,
     {
       board: state.board,
       historyLength: state.history.length,
+      undoEffect,
     },
   ];
 }
@@ -88,20 +92,20 @@ function resolveOutcome(state, board, placements, player, winMessage) {
     }
   }
   if (isBoardFull(board)) {
-    return {
-      board,
-      gameOver: true,
-      winningCells: [],
-      status: status('The board is full. The game is a draw.'),
-      ...IDLE_ITEM,
-    };
-  }
+      return {
+        board,
+        gameOver: true,
+        winningCells: [],
+        status: status('둘 곳이 없습니다. 무승부입니다.'),
+        ...IDLE_ITEM,
+      };
+    }
   const next = nextPlayer(player, state.playerCount);
   return {
     board,
     gameOver: false,
     currentPlayer: next,
-    status: status(`Player ${player} placed a stone. Player ${next} is next.`),
+    status: status(`${playerName(player)} 착수. ${playerName(next)} 차례입니다.`),
     ...IDLE_ITEM,
   };
 }
@@ -114,12 +118,12 @@ function endTurn(state, board, customStatus) {
     ...state,
     board,
     currentPlayer: next,
-    status: customStatus || status(`Player ${next}'s turn.`),
+    status: customStatus || status(`${playerName(next)} 차례입니다.`),
     ...IDLE_ITEM,
   };
 }
 
-const defaultWin = (player) => `Player ${player} connects five and wins!`;
+const defaultWin = (player) => `${playerName(player)}이 오목을 만들었습니다.`;
 
 function findFirstWinner(board, placements) {
   for (const { x, y, player } of placements) {
@@ -142,7 +146,7 @@ function handleKnightMove(state, cell, itemId, offsetTest, shapeName) {
       return {
         ...state,
         status: status(
-          'Intersection occupied. Choose an empty cell for the first stone.',
+          '이미 돌이 있습니다. 첫 자리는 빈 곳을 고르세요.',
           'error',
         ),
       };
@@ -151,7 +155,7 @@ function handleKnightMove(state, cell, itemId, offsetTest, shapeName) {
       ...state,
       itemState: { firstCell: cell },
       status: status(
-        `First stone selected at (${cell.x}, ${cell.y}). Choose the second stone in a ${shapeName} shape.`,
+        `첫 자리: (${cell.x}, ${cell.y}). ${shapeName} 위치의 두 번째 자리를 고르세요.`,
       ),
     };
   }
@@ -165,7 +169,7 @@ function handleKnightMove(state, cell, itemId, offsetTest, shapeName) {
       ...state,
       ...IDLE_ITEM,
       status: status(
-        `Invalid selection. Second stone must be in a ${shapeName} shape. Action cancelled.`,
+        `${shapeName} 위치가 아닙니다. 아이템을 취소했습니다.`,
       ),
     };
   }
@@ -173,7 +177,7 @@ function handleKnightMove(state, cell, itemId, offsetTest, shapeName) {
     return {
       ...state,
       ...IDLE_ITEM,
-      status: status('Occupied cell. Action cancelled.', 'error'),
+      status: status('이미 돌이 있습니다. 아이템을 취소했습니다.', 'error'),
     };
   }
 
@@ -198,7 +202,7 @@ function handleAreaBlast(state, cell) {
   if (board[cell.y][cell.x] !== player) {
     return {
       ...state,
-      status: status('Must select one of your own stones.', 'error'),
+      status: status('내 돌을 하나 고르세요.', 'error'),
     };
   }
 
@@ -222,7 +226,7 @@ function handleStealStone(state, cell, success) {
   if (!owner || owner === player) {
     return {
       ...state,
-      status: status("Must select an opponent's regular stone.", 'error'),
+      status: status('상대 돌을 고르세요.', 'error'),
     };
   }
 
@@ -233,7 +237,7 @@ function handleStealStone(state, cell, success) {
     return endTurn(
       { ...state, inventories, turnHistory },
       board,
-      status(`Conversion failed for opponent stone at (${cell.x}, ${cell.y}).`, 'error'),
+      status(`(${cell.x}, ${cell.y}) 강탈 실패.`, 'error'),
     );
   }
 
@@ -256,7 +260,7 @@ function handleStealStone(state, cell, success) {
   return endTurn(
     { ...state, inventories, turnHistory },
     next,
-    status(`Success! Converted opponent stone at (${cell.x}, ${cell.y}) to your color.`),
+    status(`강탈 성공. (${cell.x}, ${cell.y})의 돌이 바뀌었습니다.`),
   );
 }
 
@@ -267,14 +271,14 @@ function handleHitStone(state, cell) {
     if (board[cell.y][cell.x]) {
       return {
         ...state,
-        status: status('Choose an empty intersection for the Hit Stone start.', 'error'),
+        status: status('알까기 시작점은 빈 곳이어야 합니다.', 'error'),
       };
     }
     return {
       ...state,
       itemState: { firstCell: cell },
       status: status(
-        `Hit Stone start selected at (${cell.x}, ${cell.y}). Click a row or column direction.`,
+        `시작점: (${cell.x}, ${cell.y}). 밀 방향을 가로 또는 세로로 고르세요.`,
       ),
     };
   }
@@ -285,7 +289,7 @@ function handleHitStone(state, cell) {
     return {
       ...state,
       status: status(
-        'Choose a direction in the same row or column from the start.',
+        '시작점과 같은 줄에서 방향을 고르세요.',
         'error',
       ),
     };
@@ -293,7 +297,7 @@ function handleHitStone(state, cell) {
 
   return {
     ...state,
-    status: status('Hit Stone is moving. The turn will end when every stone stops.'),
+    status: status('돌을 밀고 있습니다.'),
   };
 }
 
@@ -301,7 +305,14 @@ function commitHitStone(state, plan) {
   const player = state.currentPlayer;
   const next = plan.board;
   const inventories = consume(state.inventories, player, 'hit_stone');
-  const turnHistory = rememberTurn(state);
+  const turnHistory = rememberTurn(state, {
+    type: 'hit_stone',
+    plan: {
+      start: plan.start,
+      direction: plan.direction,
+      segments: plan.segments,
+    },
+  });
   const history = [...state.history, { x: plan.start.x, y: plan.start.y, player, success: true }];
   const winner = findFirstWinner(next, plan.placements);
 
@@ -314,7 +325,7 @@ function commitHitStone(state, plan) {
       turnHistory,
       gameOver: true,
       winningCells: winner.line,
-      status: status(`Player ${winner.player} connects five and wins!`, 'win'),
+      status: status(`${playerName(winner.player)}이 오목을 만들었습니다.`, 'win'),
       ...IDLE_ITEM,
     };
   }
@@ -328,7 +339,7 @@ function commitHitStone(state, plan) {
       turnHistory,
       gameOver: true,
       winningCells: [],
-      status: status('The board is full. The game is a draw.'),
+      status: status('둘 곳이 없습니다. 무승부입니다.'),
       ...IDLE_ITEM,
     };
   }
@@ -336,7 +347,7 @@ function commitHitStone(state, plan) {
   return endTurn(
     { ...state, history, inventories, turnHistory },
     next,
-    status('Hit Stone resolved. The final stone hit the edge and was removed.'),
+    status('알까기가 끝났습니다. 마지막 돌은 판 밖으로 나갔습니다.'),
   );
 }
 
@@ -352,7 +363,7 @@ function handleTimeStone(state, roll) {
     return endTurn(
       { ...state, inventories, failedFlash: null },
       state.board,
-      status('Time Stone failed. No turns were undone.', 'error'),
+      status('시간석 실패. 되돌리지 못했습니다.', 'error'),
     );
   }
 
@@ -365,7 +376,7 @@ function handleTimeStone(state, roll) {
       inventories,
       currentPlayer: nextPlayerAfterUse,
       failedFlash: null,
-      status: status('Time Stone rolled a number, but there are no previous turns to undo.'),
+      status: status('되돌릴 차례가 없습니다.'),
       ...IDLE_ITEM,
     };
   }
@@ -373,8 +384,8 @@ function handleTimeStone(state, roll) {
   const targetIndex = state.turnHistory.length - undoCount;
   const snapshot = state.turnHistory[targetIndex];
   const label = undoCount === roll
-    ? `${undoCount} turn${undoCount === 1 ? '' : 's'}`
-    : `${undoCount} available turn${undoCount === 1 ? '' : 's'} of ${roll}`;
+    ? `${undoCount}차례`
+    : `${roll}차례 중 가능한 ${undoCount}차례`;
 
   return {
     ...state,
@@ -386,7 +397,7 @@ function handleTimeStone(state, roll) {
     gameOver: false,
     winningCells: [],
     failedFlash: null,
-    status: status(`Time Stone rolled ${roll}. Undid ${label}. Player ${nextPlayerAfterUse} is next.`),
+    status: status(`시간석 ${roll}. ${label}를 되돌렸습니다. ${playerName(nextPlayerAfterUse)} 차례입니다.`),
     ...IDLE_ITEM,
   };
 }
@@ -398,63 +409,38 @@ function handleTimeStone(state, roll) {
 export function gameReducer(state, action) {
   switch (action.type) {
     case 'START_GAME': {
-      const playerCount = clampCount(action.playerCount);
       return {
         ...initialState,
-        playerCount,
-        fiftyFifty: action.fiftyFifty,
+        playerCount: PLAYER_COUNT,
         gameStarted: true,
-        inventories: buildInventories(playerCount),
+        inventories: buildInventories(),
         turnHistory: [],
         session: state.session + 1,
-        status: status(
-          `Player 1 begins. ${
-            action.fiftyFifty
-              ? 'Every valid attempt is a 50–50 roll.'
-              : 'Choose any empty intersection.'
-          }`,
-        ),
+        status: status('흑부터 둡니다. 빈 교차점을 고르세요.'),
       };
     }
 
     case 'CLEAR_FLASH':
       return state.failedFlash ? { ...state, failedFlash: null } : state;
 
-    // A normal stone placement. `success` is pre-rolled by the caller
-    // (always true unless 50–50 mode is on).
+    // A normal stone placement.
     case 'PLACE': {
-      const { cell, success } = action;
+      const { cell } = action;
       if (!state.gameStarted || state.gameOver || !cell) return state;
       if (state.board[cell.y][cell.x]) {
         return {
           ...state,
-          status: status('That intersection is occupied. Choose another one.', 'error'),
+          status: status('이미 돌이 있습니다. 다른 곳을 고르세요.', 'error'),
         };
       }
 
       const player = state.currentPlayer;
-      const history = [...state.history, { x: cell.x, y: cell.y, player, success }];
+      const history = [...state.history, { x: cell.x, y: cell.y, player, success: true }];
       const turnHistory = rememberTurn(state);
-
-      if (success) {
-        const next = cloneBoard(state.board);
-        next[cell.y][cell.x] = player;
-        const outcome = resolveOutcome(state, next, [cell], player, defaultWin);
-        return { ...state, history, turnHistory, failedFlash: null, ...outcome };
-      }
-
-      const nextP = nextPlayer(player, state.playerCount);
-      return {
-        ...state,
-        history,
-        turnHistory,
-        failedFlash: cell,
-        currentPlayer: nextP,
-        status: status(
-          `Player ${player}'s stone failed to appear. Player ${nextP} is next.`,
-          'error',
-        ),
-      };
+      const next = cloneBoard(state.board);
+      next[cell.y][cell.x] = player;
+      const outcome = resolveOutcome(state, next, [cell], player, defaultWin);
+      return { ...state, history, turnHistory, failedFlash: null, ...outcome };
     }
 
     case 'ACTIVATE_ITEM': {
@@ -468,7 +454,7 @@ export function gameReducer(state, action) {
           ...state,
           ...IDLE_ITEM,
           status: status(
-            `Player ${state.currentPlayer}'s turn. Choose any empty intersection.`,
+            `${playerName(state.currentPlayer)} 차례입니다. 빈 곳을 고르세요.`,
           ),
         };
       }
@@ -478,7 +464,7 @@ export function gameReducer(state, action) {
         activeItem: action.itemId,
         itemState: {},
         status: status(
-          `[ITEM ACTIVE] ${item.desc} (Click the item again to cancel)`,
+          `${item.name}: ${item.desc} 다시 누르면 취소합니다.`,
         ),
       };
     }
@@ -489,7 +475,7 @@ export function gameReducer(state, action) {
         ...state,
         ...IDLE_ITEM,
         status: status(
-          `Player ${state.currentPlayer}'s turn. Choose any empty intersection.`,
+          `${playerName(state.currentPlayer)} 차례입니다. 빈 곳을 고르세요.`,
         ),
       };
 
@@ -499,14 +485,14 @@ export function gameReducer(state, action) {
     case 'BEGIN_TIME_STONE_ANIMATION':
       return {
         ...state,
-        status: status('Time Stone is rewinding. Removed stones are fading out.'),
+        status: status('시간을 되감고 있습니다.'),
       };
 
     case 'BEGIN_HIT_STONE_ANIMATION':
       if (state.activeItem !== 'hit_stone') return state;
       return {
         ...state,
-        status: status('Hit Stone is moving. The turn will end when every stone stops.'),
+        status: status('돌을 밀고 있습니다.'),
       };
 
     case 'RESOLVE_HIT_STONE':
@@ -528,7 +514,7 @@ export function gameReducer(state, action) {
             cell,
             'knight_move',
             (dx, dy) => (dx === 1 && dy === 2) || (dx === 2 && dy === 1),
-            "Knight's move (날일자)",
+            '날일자',
           );
 
         case 'big_knight_move':
@@ -537,7 +523,7 @@ export function gameReducer(state, action) {
             cell,
             'big_knight_move',
             (dx, dy) => (dx === 1 && dy === 3) || (dx === 3 && dy === 1),
-            "Big Knight's move (눈목자)",
+            '큰 날일자',
           );
 
         case 'area_blast':
