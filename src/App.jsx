@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useGameEngine } from './hooks/useGameEngine.js';
+import { useMultiplayer } from './hooks/useMultiplayer.js';
 import Board from './components/Board.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import SetupDialog from './components/SetupDialog.jsx';
@@ -11,7 +12,18 @@ import EndGameCelebration from './components/EndGameCelebration.jsx';
 import { timeStoneRoll } from './game/random.js';
 
 export default function App() {
-  const engine = useGameEngine();
+  const multiplayer = useMultiplayer();
+  const enoughPlayers = multiplayer.players.length >= multiplayer.state.playerCount;
+  const canAct = multiplayer.connected
+    && !multiplayer.sending
+    && enoughPlayers
+    && multiplayer.playerNumber === multiplayer.state.currentPlayer
+    && !multiplayer.state.gameOver;
+  const engine = useGameEngine({
+    authoritativeState: multiplayer.state,
+    sendAction: multiplayer.sendAction,
+    canAct,
+  });
   const { state } = engine;
   const [showSetup, setShowSetup] = useState(true);
   const [timeStoneDialog, setTimeStoneDialog] = useState({
@@ -27,13 +39,24 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [state.failedFlash, engine.clearFlash]);
 
-  const handleStart = () => {
-    engine.startGame();
-    setShowSetup(false);
-    setTimeStoneDialog({ open: false, rolling: false, result: undefined });
+  const handleCreate = async (playerName) => {
+    const joined = await multiplayer.createGame(playerName);
+    if (joined) {
+      setShowSetup(false);
+      setTimeStoneDialog({ open: false, rolling: false, result: undefined });
+    }
+  };
+
+  const handleJoin = async (sessionId, playerName) => {
+    const joined = await multiplayer.connectToGame(sessionId, playerName);
+    if (joined) {
+      setShowSetup(false);
+      setTimeStoneDialog({ open: false, rolling: false, result: undefined });
+    }
   };
 
   const handleNewGame = () => {
+    multiplayer.disconnect();
     setShowSetup(true);
     setTimeStoneDialog({ open: false, rolling: false, result: undefined });
   };
@@ -74,6 +97,9 @@ export default function App() {
         />
         <Sidebar
           state={state}
+          multiplayer={multiplayer}
+          canAct={canAct}
+          enoughPlayers={enoughPlayers}
           onActivateItem={handleActivateItem}
           onNewGame={handleNewGame}
         />
@@ -81,8 +107,11 @@ export default function App() {
 
       <SetupDialog
         open={showSetup}
-        dismissable={state.gameStarted}
-        onStart={handleStart}
+        dismissable={multiplayer.connected}
+        connecting={multiplayer.connecting}
+        error={multiplayer.error}
+        onCreate={handleCreate}
+        onJoin={handleJoin}
       />
 
       <TimeStoneConfirmDialog
@@ -93,7 +122,7 @@ export default function App() {
         onCancel={() => setTimeStoneDialog({ open: false, rolling: false, result: undefined })}
       />
 
-      {!showSetup && (
+      {!showSetup && multiplayer.connected && (
         <EndGameCelebration state={state} onNewGame={handleNewGame} />
       )}
     </>

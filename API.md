@@ -2,8 +2,8 @@
 
 ## 개요
 
-- **서버 URL**: `http://localhost:3001`
-- **WebSocket URL**: `ws://localhost:3001`
+- **서버 URL**: `http://11.190.49.96:3001`
+- **WebSocket URL**: `ws://11.190.49.96:3001`
 - **포트**: 3001
 
 ## REST API
@@ -266,7 +266,7 @@ socket.on('game_over', (data) => {
 
 **1단계: 게임 생성**
 ```javascript
-const res = await fetch('http://localhost:3001/api/games', {
+const res = await fetch('http://11.190.49.96:3001/api/games', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ playerCount: 2 })
@@ -278,7 +278,7 @@ const { sessionId, state } = await res.json();
 ```javascript
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:3001');
+const socket = io('http://11.190.49.96:3001');
 
 socket.on('connect', () => {
   socket.emit('join', { sessionId, name: 'Player 1' }, (response) => {
@@ -348,5 +348,5 @@ socket.emit('action', {
 ## 배포 환경
 
 프로덕션에서는:
-- `http://localhost:3001` → `https://your-domain.com`
-- `ws://localhost:3001` → `wss://your-domain.com`
+- `http://11.190.49.96:3001` → `https://your-domain.com`
+- `ws://11.190.49.96:3001` → `wss://your-domain.com`

@@ -2,7 +2,7 @@
 
 import { ITEMS } from '../game/items.js';
 
-export default function ItemsPanel({ inventory, activeItem, gameOver, onActivate }) {
+export default function ItemsPanel({ inventory, activeItem, gameOver, disabled, onActivate }) {
   return (
     <div className="items-grid" aria-label="보유 아이템">
       {ITEMS.map((item) => {
@@ -12,7 +12,7 @@ export default function ItemsPanel({ inventory, activeItem, gameOver, onActivate
             key={item.id}
             type="button"
             className={`item-btn${activeItem === item.id ? ' active' : ''}`}
-            disabled={gameOver || !available}
+            disabled={disabled || gameOver || !available}
             title={item.desc}
             onClick={(e) => {
               e.stopPropagation();

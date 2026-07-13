@@ -101,6 +101,39 @@ h1 {
   letter-spacing: 0;
 }
 
+.session-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.session-panel > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.session-panel strong {
+  overflow: hidden;
+  font-size: 0.92rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button.compact {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  font-size: 0.72rem;
+}
+
+.player-list-title {
+  margin-bottom: 7px;
+}
+
 .intro {
   margin: 16px 0 22px;
   color: var(--muted);
@@ -196,6 +229,7 @@ h1 {
   max-height: 170px;
   overflow: auto;
   padding-right: 3px;
+  margin-bottom: 13px;
 }
 
 .player-chip {
@@ -354,6 +388,75 @@ dialog::backdrop {
   color: var(--muted);
   font-size: 0.88rem;
   line-height: 1.5;
+}
+
+.connection-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  box-shadow: 0 0 0 4px rgba(115, 110, 101, 0.12);
+}
+
+.mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 20px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.mode-switch button {
+  min-height: 42px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+}
+
+.mode-switch button.active {
+  color: #fffdf7;
+  background: var(--accent);
+}
+
+.setup-field {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 16px;
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.setup-field input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: #fffdf7;
+}
+
+.setup-field input::placeholder {
+  color: #999187;
+}
+
+.connection-error {
+  margin: 0 0 16px !important;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent-2);
+  border-radius: 0 7px 7px 0;
+  color: #63342a !important;
+  background: rgba(156, 74, 55, 0.1);
+}
+
+.lobby-actions {
+  margin-top: 22px;
 }
 
 .tutorial-heading {

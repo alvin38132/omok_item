@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
-import { gameReducer, initialState } from '../game/reducer.js';
+import { initialState } from '../game/reducer.js';
+
+const SERVER_URL = 'http://11.190.49.96:3001';
 
 export function useMultiplayer() {
   const [state, setState] = useState(initialState);
@@ -8,73 +10,140 @@ export function useMultiplayer() {
   const [players, setPlayers] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [connecting, setConnecting] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
   const socketRef = useRef(null);
+  const sendingRef = useRef(false);
 
-  const connectToGame = async (gameSessionId, playerName = 'Player') => {
-    if (socketRef.current?.connected) return;
+  const disconnect = useCallback(() => {
+    socketRef.current?.disconnect();
+    socketRef.current = null;
+    sendingRef.current = false;
+    setConnected(false);
+    setConnecting(false);
+    setSending(false);
+    setPlayerNumber(null);
+    setPlayers([]);
+    setSessionId(null);
+    setState(initialState);
+    setError('');
+  }, []);
 
+  const connectToGame = useCallback((gameSessionId, playerName = 'Player') => {
+    const normalizedSessionId = gameSessionId.trim();
+    const normalizedName = playerName.trim() || 'Player';
+
+    socketRef.current?.disconnect();
     setConnecting(true);
-    const socket = io('http://localhost:3001', {
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
-    });
+    setConnected(false);
+    setError('');
 
-    socket.on('connect', () => {
-      console.log('Connected to server');
-      socket.emit('join', { sessionId: gameSessionId, name: playerName }, (response) => {
-        if (response.error) {
-          console.error('Failed to join:', response.error);
-          setConnecting(false);
-          return;
-        }
-        setPlayerNumber(response.playerNumber);
-        setState(response.state);
-        setSessionId(gameSessionId);
+    return new Promise((resolve) => {
+      const socket = io(SERVER_URL, {
+        autoConnect: false,
+        reconnection: false,
+      });
+      socketRef.current = socket;
+      let settled = false;
+
+      const fail = (message) => {
+        if (settled) return;
+        settled = true;
+        setConnecting(false);
+        setConnected(false);
+        setError(message);
+        socket.disconnect();
+        resolve(false);
+      };
+
+      socket.on('connect', () => {
+        socket.emit(
+          'join',
+          { sessionId: normalizedSessionId, name: normalizedName },
+          (response) => {
+            if (response?.error) {
+              fail(response.error);
+              return;
+            }
+
+            settled = true;
+            setPlayerNumber(response.playerNumber);
+            setState(response.state);
+            setSessionId(normalizedSessionId);
+            setConnecting(false);
+            setConnected(true);
+            resolve(true);
+          },
+        );
+      });
+
+      socket.on('state_updated', setState);
+      socket.on('players_updated', setPlayers);
+      socket.on('game_over', ({ finalState }) => setState(finalState));
+
+      socket.on('connect_error', () => {
+        fail('서버에 연결할 수 없습니다.');
+      });
+
+      socket.on('disconnect', () => {
+        setConnected(false);
         setConnecting(false);
       });
+
+      socket.connect();
     });
-
-    socket.on('state_updated', (newState) => {
-      setState(newState);
-    });
-
-    socket.on('players_updated', (playerList) => {
-      setPlayers(playerList);
-    });
-
-    socket.on('game_over', (data) => {
-      console.log('Game over:', data);
-      setState(data.finalState);
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-    });
-
-    socketRef.current = socket;
-  };
-
-  const sendAction = (action) => {
-    if (!socketRef.current?.connected || !sessionId) {
-      console.error('Not connected to server');
-      return;
-    }
-    socketRef.current.emit('action', { sessionId, action }, (response) => {
-      if (response.error) {
-        console.error('Action error:', response.error);
-      }
-    });
-  };
-
-  useEffect(() => {
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
   }, []);
+
+  const createGame = useCallback(async (playerName = 'Player') => {
+    setConnecting(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${SERVER_URL}/api/games`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerCount: 2 }),
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const game = await response.json();
+      return connectToGame(game.sessionId, playerName);
+    } catch {
+      setConnecting(false);
+      setError('게임을 만들 수 없습니다. 서버 연결을 확인하세요.');
+      return false;
+    }
+  }, [connectToGame]);
+
+  const sendAction = useCallback((action) => {
+    const socket = socketRef.current;
+    if (!socket?.connected || !sessionId) {
+      setError('서버와 연결되어 있지 않습니다.');
+      return Promise.resolve(false);
+    }
+    if (sendingRef.current) return Promise.resolve(false);
+
+    setError('');
+    sendingRef.current = true;
+    setSending(true);
+
+    return new Promise((resolve) => {
+      socket.emit('action', { sessionId, action }, (response) => {
+        sendingRef.current = false;
+        setSending(false);
+
+        if (response?.error) {
+          setError(response.error);
+          resolve(false);
+          return;
+        }
+        resolve(Boolean(response?.ok));
+      });
+    });
+  }, [sessionId]);
+
+  useEffect(() => disconnect, [disconnect]);
 
   return {
     state,
@@ -82,7 +151,12 @@ export function useMultiplayer() {
     players,
     sessionId,
     connecting,
+    connected,
+    sending,
+    error,
+    createGame,
     connectToGame,
     sendAction,
+    disconnect,
   };
 }

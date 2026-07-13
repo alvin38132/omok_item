@@ -114,11 +114,21 @@ function DemoBoard({ page }) {
   );
 }
 
-export default function SetupDialog({ open, dismissable, onStart }) {
+export default function SetupDialog({
+  open,
+  dismissable,
+  connecting,
+  error,
+  onCreate,
+  onJoin,
+}) {
   const dialogRef = useRef(null);
-  const [pageIndex, setPageIndex] = useState(0);
-  const page = TUTORIAL_PAGES[pageIndex];
-  const isFinalTutorialPage = page.id === 'hit_stone';
+  const [pageIndex, setPageIndex] = useState(TUTORIAL_PAGES.length);
+  const [mode, setMode] = useState('create');
+  const [playerName, setPlayerName] = useState('');
+  const [sessionId, setSessionId] = useState('');
+  const isLobbyPage = pageIndex === TUTORIAL_PAGES.length;
+  const page = TUTORIAL_PAGES[Math.min(pageIndex, TUTORIAL_PAGES.length - 1)];
 
   // Sync native <dialog> open/close with the `open` prop.
   useEffect(() => {
@@ -132,12 +142,17 @@ export default function SetupDialog({ open, dismissable, onStart }) {
   }, [open]);
 
   useEffect(() => {
-    if (open) setPageIndex(0);
+    if (open) {
+      setPageIndex(TUTORIAL_PAGES.length);
+      setSessionId('');
+    }
   }, [open]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    onStart();
+    if (!isLobbyPage || connecting) return;
+    if (mode === 'create') onCreate(playerName);
+    else onJoin(sessionId, playerName);
   };
 
   const handlePrevious = () => {
@@ -146,7 +161,7 @@ export default function SetupDialog({ open, dismissable, onStart }) {
 
   const handleNext = (event) => {
     event.preventDefault();
-    setPageIndex((current) => Math.min(TUTORIAL_PAGES.length - 1, current + 1));
+    setPageIndex((current) => Math.min(TUTORIAL_PAGES.length, current + 1));
   };
 
   return (
@@ -159,52 +174,116 @@ export default function SetupDialog({ open, dismissable, onStart }) {
       }}
     >
       <form className="setup" onSubmit={handleSubmit}>
-        <div className="tutorial-heading">
-          <div>
-            <span className="small-label">아이템 안내</span>
-            <h2 id="setupTitle">{page.title}</h2>
-          </div>
-          <span className="tutorial-counter">
-            {pageIndex + 1} / {TUTORIAL_PAGES.length}
-          </span>
-        </div>
+        {isLobbyPage ? (
+          <>
+            <div className="tutorial-heading">
+              <div>
+                <span className="small-label">온라인 대국</span>
+                <h2 id="setupTitle">서버에 연결</h2>
+              </div>
+              <span className="connection-dot" aria-label="연결 전" />
+            </div>
 
-        <DemoBoard key={page.id} page={page} />
-        <p className="tutorial-guide">{page.guide}</p>
+            <div className="mode-switch" aria-label="연결 방식">
+              <button
+                type="button"
+                className={mode === 'create' ? 'active' : ''}
+                aria-pressed={mode === 'create'}
+                onClick={() => setMode('create')}
+              >
+                방 만들기
+              </button>
+              <button
+                type="button"
+                className={mode === 'join' ? 'active' : ''}
+                aria-pressed={mode === 'join'}
+                onClick={() => setMode('join')}
+              >
+                코드로 참가
+              </button>
+            </div>
 
-        <div className="tutorial-dots" aria-label="튜토리얼 페이지">
-          {TUTORIAL_PAGES.map((item, index) => (
-            <button
-              key={item.id}
-              type="button"
-              className={index === pageIndex ? 'active' : ''}
-              aria-label={`${item.title} 보기`}
-              aria-current={index === pageIndex ? 'step' : undefined}
-              onClick={() => setPageIndex(index)}
-            />
-          ))}
-        </div>
+            <label className="setup-field">
+              <span>플레이어 이름</span>
+              <input
+                value={playerName}
+                maxLength={24}
+                placeholder="이름을 입력하세요"
+                autoComplete="nickname"
+                onChange={(event) => setPlayerName(event.target.value)}
+              />
+            </label>
 
-        <div className="dialog-actions">
-          <button
-            type="button"
-            className="secondary"
-            disabled={pageIndex === 0}
-            onClick={handlePrevious}
-          >
-            이전
-          </button>
-          {isFinalTutorialPage ? (
-            <button id="startGame" type="submit">
-              대국 시작
-            </button>
-          ) : (
-            <button type="button" onClick={handleNext}>
-              다음
-            </button>
-          )}
-        </div>
-        <p className="limit-note">두 사람이 번갈아 둡니다.</p>
+            {mode === 'join' && (
+              <label className="setup-field">
+                <span>게임 코드</span>
+                <input
+                  value={sessionId}
+                  placeholder="session-1"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  required
+                  onChange={(event) => setSessionId(event.target.value)}
+                />
+              </label>
+            )}
+
+            {error && <p className="connection-error" role="alert">{error}</p>}
+
+            <div className="dialog-actions lobby-actions">
+              <button type="button" className="secondary" disabled={connecting} onClick={() => setPageIndex(0)}>
+                아이템 안내
+              </button>
+              <button type="submit" disabled={connecting || (mode === 'join' && !sessionId.trim())}>
+                {connecting ? '연결 중...' : mode === 'create' ? '방 만들기' : '참가하기'}
+              </button>
+            </div>
+            <p className="limit-note">2인 온라인 대국</p>
+          </>
+        ) : (
+          <>
+            <div className="tutorial-heading">
+              <div>
+                <span className="small-label">아이템 안내</span>
+                <h2 id="setupTitle">{page.title}</h2>
+              </div>
+              <span className="tutorial-counter">
+                {pageIndex + 1} / {TUTORIAL_PAGES.length}
+              </span>
+            </div>
+
+            <DemoBoard key={page.id} page={page} />
+            <p className="tutorial-guide">{page.guide}</p>
+
+            <div className="tutorial-dots" aria-label="튜토리얼 페이지">
+              {TUTORIAL_PAGES.map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={index === pageIndex ? 'active' : ''}
+                  aria-label={`${item.title} 보기`}
+                  aria-current={index === pageIndex ? 'step' : undefined}
+                  onClick={() => setPageIndex(index)}
+                />
+              ))}
+            </div>
+
+            <div className="dialog-actions">
+              <button
+                type="button"
+                className="secondary"
+                disabled={pageIndex === 0}
+                onClick={handlePrevious}
+              >
+                이전
+              </button>
+              <button type="button" onClick={handleNext}>
+                {pageIndex === TUTORIAL_PAGES.length - 1 ? '온라인 대국 설정' : '다음'}
+              </button>
+            </div>
+            <p className="limit-note">두 사람이 각자 접속해 번갈아 둡니다.</p>
+          </>
+        )}
       </form>
     </dialog>
   );
