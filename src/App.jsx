@@ -17,6 +17,7 @@ export default function App() {
   const canAct = multiplayer.connected
     && !multiplayer.sending
     && enoughPlayers
+    && multiplayer.state.gameStarted
     && multiplayer.playerNumber === multiplayer.state.currentPlayer
     && !multiplayer.state.gameOver;
   const engine = useGameEngine({

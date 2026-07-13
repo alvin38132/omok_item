@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-const ROLL_FACES = ['실패', '1', '실패', '2', '실패', '3'];
+const ROLL_FACES = ['1', '2', '3', '4', '5', '6'];
 
 export default function TimeStoneConfirmDialog({
   open,
@@ -24,7 +24,7 @@ export default function TimeStoneConfirmDialog({
 
   useEffect(() => {
     if (!rolling) {
-      if (result !== undefined) setFace(result ?? '실패');
+      if (result !== undefined) setFace(result);
       return undefined;
     }
 
@@ -38,10 +38,10 @@ export default function TimeStoneConfirmDialog({
   }, [rolling, result]);
 
   const resultText = result === undefined
-    ? '실패 면이 절반입니다. 숫자가 나오면 그만큼 되돌립니다.'
-    : result
-      ? `${result}이 나왔습니다. ${result}차례 되돌립니다.`
-      : '실패입니다. 되돌리지 않습니다.';
+    ? '짝수가 나오면 이번 차례를 한 번 더 진행하고, 홀수가 나오면 실패합니다.'
+    : result % 2 === 0
+      ? `${result}이 나왔습니다. 이번 차례를 한 번 더 진행합니다.`
+      : `${result}이 나왔습니다. 시간석 사용에 실패했습니다.`;
 
   return (
     <dialog
