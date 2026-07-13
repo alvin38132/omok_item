@@ -199,7 +199,7 @@ socket.emit('action', { sessionId, action }, (response) => {
 // 셀 클릭 (아이템 사용)
 { type: 'ITEM_CLICK', cell: { x: 9, y: 9 }, roll: { success: true } }
 
-// Time Stone 사용 (2,4,6 나오면 턴 다시, 1,3,5는 실패)
+// Time Stone 사용 (2,4,6 나오면 그 만큼 턴 되돌리기, 1,3,5는 꽝)
 { type: 'USE_TIME_STONE', roll: 4 }
 
 // Hit Stone 애니메이션 시작
