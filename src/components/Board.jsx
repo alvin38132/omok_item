@@ -5,6 +5,7 @@
 
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { DEFAULT_CAMERA, SIZE } from '../game/constants.js';
+import { playSound } from '../game/audio.js';
 import {
   drawGame,
   clampCamera,
@@ -159,6 +160,9 @@ export default function Board({
       draw();
 
       if (progress >= 1) {
+        if (!segment.removeAtEdge) {
+          playSound('place');
+        }
         segmentIndex += 1;
         segmentStartedAt = timestamp;
         if (segmentIndex >= segments.length) {
