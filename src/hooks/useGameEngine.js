@@ -5,6 +5,7 @@ import { useCallback, useReducer, useState } from 'react';
 import { gameReducer, initialState } from '../game/reducer.js';
 import { chance } from '../game/random.js';
 import { directionFromCells, planHitStone } from '../game/hitStone.js';
+import { SIZE } from '../game/constants.js';
 import { BIG_KNIGHT_OFFSETS, KNIGHT_OFFSETS } from '../game/items.js';
 import { inBounds } from '../game/logic.js';
 
@@ -24,6 +25,26 @@ function areaStones(board, center) {
     }
   }
   return stones;
+}
+
+function buildRewindChanges(currentBoard, targetBoard) {
+  const fadingStones = [];
+  const appearingStones = [];
+  const hiddenCells = [];
+
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const current = currentBoard[y][x];
+      const target = targetBoard[y][x];
+      if (current === target) continue;
+
+      hiddenCells.push({ x, y });
+      if (current) fadingStones.push({ x, y, player: current });
+      if (target) appearingStones.push({ x, y, player: target });
+    }
+  }
+
+  return { fadingStones, appearingStones, hiddenCells };
 }
 
 export function useGameEngine({
@@ -67,8 +88,38 @@ export function useGameEngine({
 
   const useTimeStone = useCallback((roll) => {
     if (!canAct || hitAnimation || timeRewindAnimation) return;
-    dispatch({ type: 'USE_TIME_STONE', roll });
-  }, [canAct, dispatch, hitAnimation, timeRewindAnimation]);
+    if (roll % 2 !== 0) {
+      dispatch({ type: 'USE_TIME_STONE', roll });
+      return;
+    }
+
+    const undoCount = Math.min(roll, state.turnHistory.length);
+    if (!undoCount) {
+      dispatch({ type: 'USE_TIME_STONE', roll });
+      return;
+    }
+
+    const targetIndex = state.turnHistory.length - undoCount;
+    const snapshot = state.turnHistory[targetIndex];
+    const changes = buildRewindChanges(state.board, snapshot.board);
+    const latestRevertedTurn = state.turnHistory[state.turnHistory.length - 1];
+    const reverseHitPlan = latestRevertedTurn?.undoEffect?.type === 'hit_stone'
+      ? latestRevertedTurn.undoEffect.plan
+      : null;
+
+    if (!changes.hiddenCells.length) {
+      dispatch({ type: 'USE_TIME_STONE', roll });
+      return;
+    }
+
+    dispatch({ type: 'BEGIN_TIME_STONE_ANIMATION' });
+    setTimeRewindAnimation({
+      id: crypto.randomUUID(),
+      roll,
+      ...changes,
+      reverseHitPlan,
+    });
+  }, [canAct, dispatch, hitAnimation, timeRewindAnimation, state.board, state.turnHistory]);
 
   const finishTimeRewindAnimation = useCallback((animationId) => {
     setTimeRewindAnimation((animation) => {

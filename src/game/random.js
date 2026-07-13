@@ -23,7 +23,7 @@ export function chance(percent) {
   return secureInt(100) < percent;
 }
 
-// Time Stone die: even rolls grant another turn; odd rolls fail.
+// Time Stone die: even rolls rewind that many turns; odd rolls are blanks.
 export function timeStoneRoll() {
   return secureInt(6) + 1;
 }
