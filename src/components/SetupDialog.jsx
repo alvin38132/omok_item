@@ -62,12 +62,12 @@ const TUTORIAL_PAGES = [
   {
     id: 'time_stone',
     title: itemName('time_stone'),
-    guide: '짝수가 나오면 이번 차례를 한 번 더 진행하고, 홀수가 나오면 실패합니다.',
+    guide: '2, 4, 6이 나오면 그만큼 최근 차례를 되돌리고, 홀수가 나오면 꽝입니다.',
     stones: [
       { x: 2, y: 4, color: 'black' },
-      { x: 3, y: 4, color: 'white' },
-      { x: 4, y: 4, color: 'black' },
-      { x: 4, y: 3, color: 'white' },
+      { x: 3, y: 4, color: 'white', className: 'demo-rewind-one' },
+      { x: 4, y: 4, color: 'black', className: 'demo-rewind-two' },
+      { x: 4, y: 3, color: 'white', className: 'demo-rewind-three' },
     ],
     marks: [{ x: 5, y: 1, className: 'demo-dice' }],
   },

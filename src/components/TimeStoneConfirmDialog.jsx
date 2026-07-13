@@ -38,10 +38,10 @@ export default function TimeStoneConfirmDialog({
   }, [rolling, result]);
 
   const resultText = result === undefined
-    ? '짝수가 나오면 이번 차례를 한 번 더 진행하고, 홀수가 나오면 실패합니다.'
+    ? '2, 4, 6이 나오면 그만큼 최근 차례를 되돌리고, 홀수가 나오면 꽝입니다.'
     : result % 2 === 0
-      ? `${result}이 나왔습니다. 이번 차례를 한 번 더 진행합니다.`
-      : `${result}이 나왔습니다. 시간석 사용에 실패했습니다.`;
+      ? `${result}이 나왔습니다. 최근 ${result}차례를 되돌립니다.`
+      : `${result}이 나왔습니다. 꽝입니다.`;
 
   return (
     <dialog

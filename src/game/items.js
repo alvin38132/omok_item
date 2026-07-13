@@ -33,7 +33,7 @@ export const ITEMS = [
   {
     id: 'time_stone',
     name: '시간석',
-    desc: '주사위가 짝수면 이번 차례를 한 번 더 진행하고, 홀수면 실패합니다.',
+    desc: '주사위가 2, 4, 6이면 그만큼 최근 차례를 되돌리고, 홀수면 꽝입니다.',
     actionType: 'confirm',
   },
   {
