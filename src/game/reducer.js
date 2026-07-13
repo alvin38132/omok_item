@@ -359,23 +359,40 @@ function handleTimeStone(state, roll) {
 
   const inventories = consume(state.inventories, player, 'time_stone');
 
-  // 2, 4, 6 나오면 턴 다시. 1, 3, 5는 실패
-  const success = roll === 2 || roll === 4 || roll === 6;
-
-  if (!success) {
-    return endTurn(
-      { ...state, inventories, failedFlash: null },
-      state.board,
-      status(`시간석 ${roll}. 실패했습니다.`, 'error'),
-    );
+  // 1, 3, 5: 꽝 (아무것도 하지 않음, 상태 변화 없음)
+  if (roll === 1 || roll === 3 || roll === 5) {
+    return state;
   }
 
-  // 2, 4, 6: 턴 다시 (currentPlayer 그대로)
+  // 2, 4, 6: 그 만큼 턴 되돌리기
+  const undoCount = Math.min(roll, state.turnHistory.length);
+  const nextPlayerAfterUse = nextPlayer(player, state.playerCount);
+
+  if (!undoCount) {
+    return {
+      ...state,
+      inventories,
+      currentPlayer: nextPlayerAfterUse,
+      failedFlash: null,
+      status: status('되돌릴 차례가 없습니다.'),
+      ...IDLE_ITEM,
+    };
+  }
+
+  const targetIndex = state.turnHistory.length - undoCount;
+  const snapshot = state.turnHistory[targetIndex];
+
   return {
     ...state,
+    board: snapshot.board,
+    history: state.history.slice(0, snapshot.historyLength),
+    turnHistory: state.turnHistory.slice(0, targetIndex),
     inventories,
+    currentPlayer: nextPlayerAfterUse,
+    gameOver: false,
+    winningCells: [],
     failedFlash: null,
-    status: status(`시간석 ${roll}! 턴을 다시 합니다.`),
+    status: status(`시간석 ${roll}! ${undoCount}차례를 되돌렸습니다. ${playerName(nextPlayerAfterUse)} 차례입니다.`),
     ...IDLE_ITEM,
   };
 }
