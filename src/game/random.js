@@ -23,9 +23,8 @@ export function chance(percent) {
   return secureInt(100) < percent;
 }
 
-// Time Stone die: three fail sides, then undo 1, 2, or 3 turns.
+// Time Stone die: even rolls grant another turn; odd rolls fail.
 export function timeStoneRoll() {
-  const side = secureInt(6);
-  return side < 3 ? null : side - 2;
+  return secureInt(6) + 1;
 }
 

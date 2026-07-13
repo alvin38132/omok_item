@@ -318,6 +318,101 @@ button.compact {
   color: rgba(255, 253, 247, 0.78);
 }
 
+.item-shop {
+  margin-bottom: 14px;
+}
+
+.shop-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.shop-heading h2 {
+  margin: 2px 0 0;
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+
+.coin-balance {
+  display: grid;
+  gap: 2px;
+  min-width: 92px;
+  padding: 7px 9px;
+  border: 1px solid rgba(47, 111, 104, 0.24);
+  border-radius: 7px;
+  background: rgba(47, 111, 104, 0.08);
+  text-align: right;
+}
+
+.coin-balance span {
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.coin-balance strong {
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 7px;
+  max-height: 235px;
+  margin-bottom: 10px;
+  padding-right: 3px;
+  overflow-y: auto;
+}
+
+.shop-item {
+  min-height: 58px;
+  padding: 8px 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--ink);
+  background: #fbf8ef;
+}
+
+.shop-item:hover:not(:disabled) {
+  border-color: rgba(47, 111, 104, 0.42);
+  background: #fffdf7;
+}
+
+.shop-item.purchased {
+  border-color: rgba(47, 111, 104, 0.32);
+  color: var(--accent);
+  background: rgba(47, 111, 104, 0.08);
+  opacity: 1;
+}
+
+.shop-price {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+.shop-item.purchased .shop-price {
+  color: var(--accent);
+}
+
+.start-game-btn {
+  width: 100%;
+}
+
+.shop-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
 .actions {
   margin-top: auto;
 }

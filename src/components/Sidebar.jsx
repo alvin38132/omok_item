@@ -3,6 +3,7 @@
 
 import TurnCard from './TurnCard.jsx';
 import ItemsPanel from './ItemsPanel.jsx';
+import ItemShop from './ItemShop.jsx';
 import PlayerList from './PlayerList.jsx';
 
 export default function Sidebar({
@@ -20,9 +21,11 @@ export default function Sidebar({
       ? { message: '서버 연결이 끊어졌습니다.', kind: 'error' }
       : !enoughPlayers
         ? { message: '상대가 참가하기를 기다리는 중입니다.', kind: '' }
-        : !canAct && !gameOver
-          ? { message: `상대 차례입니다. 현재 ${currentPlayer === 1 ? '흑' : '백'}이 둡니다.`, kind: '' }
-          : status;
+        : !gameStarted
+          ? { message: '아이템을 구매한 뒤 대국을 시작하세요.', kind: '' }
+          : !canAct && !gameOver
+            ? { message: `상대 차례입니다. 현재 ${currentPlayer === 1 ? '흑' : '백'}이 둡니다.`, kind: '' }
+            : status;
 
   const kicker = multiplayer.connected ? '온라인 대국' : '연결 끊김';
 
@@ -54,22 +57,31 @@ export default function Sidebar({
         ownPlayerNumber={multiplayer.playerNumber}
       />
 
-      <TurnCard currentPlayer={currentPlayer} gameOver={gameOver} />
+      {gameStarted && <TurnCard currentPlayer={currentPlayer} gameOver={gameOver} />}
 
       <div className={`status ${displayStatus.kind || ''}`} role="status">
         {displayStatus.message}
       </div>
 
-      <div className="small-label legend-title">
-        보유 아이템
-      </div>
-      {gameStarted && (
-        <ItemsPanel
-          inventory={state.inventories[currentPlayer]}
-          activeItem={state.activeItem}
-          gameOver={gameOver}
-          disabled={!canAct}
-          onActivate={onActivateItem}
+      {gameStarted ? (
+        <>
+          <div className="small-label legend-title">보유 아이템</div>
+          <ItemsPanel
+            inventory={state.inventories[currentPlayer]}
+            activeItem={state.activeItem}
+            gameOver={gameOver}
+            disabled={!canAct}
+            onActivate={onActivateItem}
+          />
+        </>
+      ) : (
+        <ItemShop
+          inventory={multiplayer.ownShopInventory}
+          buyingItemId={multiplayer.buyingItemId}
+          starting={multiplayer.starting}
+          enoughPlayers={enoughPlayers}
+          onBuy={multiplayer.buyItem}
+          onStart={multiplayer.startGame}
         />
       )}
 
