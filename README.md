@@ -29,7 +29,7 @@ npm run preview  # preview the production build
 | Big Knight's Move | Place two stones in a large knight's-move shape. |
 | Area Blast | Delete one of your stones and the 8 cells around it. |
 | Stone Steal | 30% chance to convert an opponent's stone to yours. |
-| Time Stone | Roll a die to fail or rewind 1-3 turns. |
+| Time Stone | Roll a die: odd results are blanks; 2, 4, or 6 rewinds that many turns. |
 | Hit Stone | Launch a stone orthogonally, sliding and knocking stones until one exits. |
 
 ## Project structure

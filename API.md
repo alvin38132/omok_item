@@ -2,8 +2,8 @@
 
 ## 개요
 
-- **서버 URL**: `http://localhost:3001`
-- **WebSocket URL**: `ws://localhost:3001`
+- **서버 URL**: `http://11.190.49.96:3001`
+- **WebSocket URL**: `ws://11.190.49.96:3001`
 - **포트**: 3001
 
 ## REST API
@@ -32,7 +32,19 @@
 
 **응답 설명:**
 - `sessionId`: 게임 세션 ID (WebSocket 연결 시 사용)
-- `state`: 초기 게임 상태 (reducer의 initialState)
+- `state`: 초기 게임 상태 (대기 상태)
+
+**아이템 가격:**
+```javascript
+{
+  knight_move: 200,
+  big_knight_move: 250,
+  area_blast: 150,
+  steal_stone: 180,
+  hit_stone: 300,
+  time_stone: 200
+}
+```
 
 ---
 
@@ -67,6 +79,74 @@ socket.emit('join', { sessionId, name }, (response) => {
 ```json
 {
   "error": "Game not found"
+}
+```
+
+---
+
+#### buy_item - 아이템 구매
+
+게임 시작 전에 아이템을 구매합니다. 각 종류당 최대 1개씩만 구매 가능합니다.
+
+**발송:**
+```javascript
+socket.emit('buy_item', { sessionId, itemId }, (response) => {
+  // callback
+})
+```
+
+**파라미터:**
+- `sessionId` (string): 게임 세션 ID
+- `itemId` (string): 구매할 아이템 ID
+
+**응답 콜백:**
+```json
+{
+  "ok": true,
+  "coins": 800,
+  "boughtItems": ["knight_move", "area_blast"]
+}
+```
+
+또는 에러:
+```json
+{
+  "error": "Not enough coins"
+}
+```
+
+**가능한 에러:**
+- `"Item not found"` - 존재하지 않는 아이템
+- `"Already bought this item"` - 이미 구매한 아이템
+- `"Not enough coins"` - 코인 부족
+
+---
+
+#### start_game - 게임 시작
+
+아이템 구매가 끝나고 게임을 시작합니다.
+
+**발송:**
+```javascript
+socket.emit('start_game', { sessionId }, (response) => {
+  // callback
+})
+```
+
+**파라미터:**
+- `sessionId` (string): 게임 세션 ID
+
+**응답 콜백:**
+```json
+{
+  "ok": true
+}
+```
+
+또는 에러:
+```json
+{
+  "error": "Game already started"
 }
 ```
 
@@ -119,8 +199,8 @@ socket.emit('action', { sessionId, action }, (response) => {
 // 셀 클릭 (아이템 사용)
 { type: 'ITEM_CLICK', cell: { x: 9, y: 9 }, roll: { success: true } }
 
-// Time Stone 사용
-{ type: 'USE_TIME_STONE', roll: 3 }
+// Time Stone 사용 (2,4,6 나오면 그 만큼 턴 되돌리기, 1,3,5는 꽝)
+{ type: 'USE_TIME_STONE', roll: 4 }
 
 // Hit Stone 애니메이션 시작
 { type: 'BEGIN_HIT_STONE_ANIMATION' }
@@ -207,6 +287,28 @@ socket.on('players_updated', (players) => {
 
 ---
 
+#### inventory_updated - 아이템 구매 업데이트
+
+다른 플레이어가 아이템을 구매했을 때 발생합니다.
+
+**수신:**
+```javascript
+socket.on('inventory_updated', (data) => {
+  // data: 플레이어의 구매 정보
+})
+```
+
+**응답 구조:**
+```json
+{
+  "playerNumber": 1,
+  "coins": 700,
+  "boughtItems": ["knight_move", "area_blast", "steal_stone"]
+}
+```
+
+---
+
 #### game_over - 게임 종료
 
 게임이 종료되었습니다 (승리 또는 무승부).
@@ -266,7 +368,7 @@ socket.on('game_over', (data) => {
 
 **1단계: 게임 생성**
 ```javascript
-const res = await fetch('http://localhost:3001/api/games', {
+const res = await fetch('http://11.190.49.96:3001/api/games', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ playerCount: 2 })
@@ -278,7 +380,7 @@ const { sessionId, state } = await res.json();
 ```javascript
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:3001');
+const socket = io('http://11.190.49.96:3001');
 
 socket.on('connect', () => {
   socket.emit('join', { sessionId, name: 'Player 1' }, (response) => {
@@ -304,13 +406,44 @@ socket.on('players_updated', (players) => {
   // 플레이어 목록 업데이트
 });
 
+socket.on('inventory_updated', (data) => {
+  console.log('Player', data.playerNumber, 'bought:', data.boughtItems);
+  // 플레이어 아이템 구매 정보 업데이트
+});
+
 socket.on('game_over', (data) => {
   console.log('Game over:', data.status.message);
   // 게임 종료 처리
 });
 ```
 
-**4단계: 액션 전송**
+**4단계: 아이템 구매 (게임 시작 전)**
+```javascript
+// 아이템 구매
+socket.emit('buy_item', {
+  sessionId,
+  itemId: 'knight_move'
+}, (response) => {
+  if (response.error) {
+    console.error('Purchase failed:', response.error);
+    return;
+  }
+  console.log('Remaining coins:', response.coins);
+  console.log('Bought items:', response.boughtItems);
+});
+
+// 모든 플레이어가 준비 완료되면 게임 시작
+socket.emit('start_game', { sessionId }, (response) => {
+  if (response.error) {
+    console.error('Start failed:', response.error);
+    return;
+  }
+  console.log('Game started!');
+  // state_updated 이벤트에서 게임 상태를 받게 됩니다
+});
+```
+
+**5단계: 액션 전송 (게임 시작 후)**
 ```javascript
 // 돌 놓기
 socket.emit('action', {
@@ -348,5 +481,5 @@ socket.emit('action', {
 ## 배포 환경
 
 프로덕션에서는:
-- `http://localhost:3001` → `https://your-domain.com`
-- `ws://localhost:3001` → `wss://your-domain.com`
+- `http://11.190.49.96:3001` → `https://your-domain.com`
+- `ws://11.190.49.96:3001` → `wss://your-domain.com`

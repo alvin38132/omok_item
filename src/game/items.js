@@ -33,7 +33,7 @@ export const ITEMS = [
   {
     id: 'time_stone',
     name: '시간석',
-    desc: '주사위 결과에 따라 최근 1~3차례를 되돌립니다.',
+    desc: '주사위가 2, 4, 6이면 그만큼 최근 차례를 되돌리고, 홀수면 꽝입니다.',
     actionType: 'confirm',
   },
   {
@@ -43,6 +43,15 @@ export const ITEMS = [
     actionType: 'click_board',
   },
 ];
+
+export const ITEM_PRICES = {
+  knight_move: 200,
+  big_knight_move: 250,
+  area_blast: 150,
+  steal_stone: 180,
+  hit_stone: 300,
+  time_stone: 200,
+};
 
 export const ITEMS_BY_ID = Object.fromEntries(ITEMS.map((item) => [item.id, item]));
 

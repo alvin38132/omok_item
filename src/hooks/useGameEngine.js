@@ -48,8 +48,18 @@ function buildRewindChanges(currentBoard, targetBoard) {
   return { fadingStones, appearingStones, hiddenCells };
 }
 
-export function useGameEngine() {
-  const [state, dispatch] = useReducer(gameReducer, initialState);
+export function useGameEngine({
+  authoritativeState,
+  sendAction,
+  canAct = true,
+} = {}) {
+  const [localState, localDispatch] = useReducer(gameReducer, initialState);
+  const state = authoritativeState ?? localState;
+  const dispatch = useCallback((action) => {
+    if (sendAction) return sendAction(action);
+    localDispatch(action);
+    return Promise.resolve(true);
+  }, [sendAction]);
   const [hitAnimation, setHitAnimation] = useState(null);
   const [timeRewindAnimation, setTimeRewindAnimation] = useState(null);
   const [itemAnimation, setItemAnimation] = useState(null);
@@ -59,28 +69,28 @@ export function useGameEngine() {
     setTimeRewindAnimation(null);
     setItemAnimation(null);
     dispatch({ type: 'START_GAME' });
-  }, []);
+  }, [dispatch]);
 
-  const clearFlash = useCallback(() => dispatch({ type: 'CLEAR_FLASH' }), []);
+  const clearFlash = useCallback(() => dispatch({ type: 'CLEAR_FLASH' }), [dispatch]);
 
   // Place a normal stone.
   const place = useCallback((cell) => {
-    if (!cell) return;
+    if (!cell || !canAct) return;
     playSound('place');
-    dispatch({ type: 'PLACE', cell });
-  }, []);
+    dispatch({ type: 'PLACE', cell, success: true });
+  }, [canAct, dispatch]);
 
   // Activate a targeting item.
   const activateItem = useCallback((itemId) => {
-    if (hitAnimation || timeRewindAnimation) return;
+    if (!canAct || hitAnimation || timeRewindAnimation) return;
     dispatch({ type: 'ACTIVATE_ITEM', itemId });
-  }, [hitAnimation, timeRewindAnimation]);
+  }, [canAct, dispatch, hitAnimation, timeRewindAnimation]);
 
-  const cancelItem = useCallback(() => dispatch({ type: 'CANCEL_ITEM' }), []);
+  const cancelItem = useCallback(() => dispatch({ type: 'CANCEL_ITEM' }), [dispatch]);
 
   const useTimeStone = useCallback((roll) => {
-    if (hitAnimation || timeRewindAnimation) return;
-    if (!roll) {
+    if (!canAct || hitAnimation || timeRewindAnimation) return;
+    if (roll % 2 !== 0) {
       dispatch({ type: 'USE_TIME_STONE', roll });
       return;
     }
@@ -111,7 +121,7 @@ export function useGameEngine() {
       ...changes,
       reverseHitPlan,
     });
-  }, [hitAnimation, timeRewindAnimation, state.board, state.turnHistory]);
+  }, [canAct, dispatch, hitAnimation, timeRewindAnimation, state.board, state.turnHistory]);
 
   const finishTimeRewindAnimation = useCallback((animationId) => {
     setTimeRewindAnimation((animation) => {
@@ -120,7 +130,7 @@ export function useGameEngine() {
       playSound('timeStone');
       return null;
     });
-  }, []);
+  }, [dispatch]);
 
   const finishHitAnimation = useCallback((animationId) => {
     setHitAnimation((animation) => {
@@ -128,7 +138,7 @@ export function useGameEngine() {
       dispatch({ type: 'RESOLVE_HIT_STONE', plan: animation.plan });
       return null;
     });
-  }, []);
+  }, [dispatch]);
 
   const finishItemAnimation = useCallback((animationId) => {
     setItemAnimation((animation) => {
@@ -149,7 +159,7 @@ export function useGameEngine() {
 
   // A board cell click. Routes to item targeting or a normal placement.
   const clickCell = useCallback((cell) => {
-    if (!cell || state.gameOver || !state.gameStarted || hitAnimation || timeRewindAnimation) return;
+    if (!cell || !canAct || state.gameOver || !state.gameStarted || hitAnimation || timeRewindAnimation) return;
     if (state.activeItem) {
       if (state.activeItem === 'hit_stone' && state.itemState.firstCell) {
         const direction = directionFromCells(state.itemState.firstCell, cell);
@@ -233,6 +243,8 @@ export function useGameEngine() {
   }, [
     hitAnimation,
     timeRewindAnimation,
+    canAct,
+    dispatch,
     state.activeItem,
     state.board,
     state.currentPlayer,

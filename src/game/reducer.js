@@ -359,14 +359,12 @@ function handleTimeStone(state, roll) {
 
   const inventories = consume(state.inventories, player, 'time_stone');
 
-  if (!roll) {
-    return endTurn(
-      { ...state, inventories, failedFlash: null },
-      state.board,
-      status('시간석 실패. 되돌리지 못했습니다.', 'error'),
-    );
+  // 1, 3, 5: 꽝 (아무것도 하지 않음, 상태 변화 없음)
+  if (roll === 1 || roll === 3 || roll === 5) {
+    return state;
   }
 
+  // 2, 4, 6: 그 만큼 턴 되돌리기
   const undoCount = Math.min(roll, state.turnHistory.length);
   const nextPlayerAfterUse = nextPlayer(player, state.playerCount);
 
@@ -383,9 +381,6 @@ function handleTimeStone(state, roll) {
 
   const targetIndex = state.turnHistory.length - undoCount;
   const snapshot = state.turnHistory[targetIndex];
-  const label = undoCount === roll
-    ? `${undoCount}차례`
-    : `${roll}차례 중 가능한 ${undoCount}차례`;
 
   return {
     ...state,
@@ -397,7 +392,7 @@ function handleTimeStone(state, roll) {
     gameOver: false,
     winningCells: [],
     failedFlash: null,
-    status: status(`시간석 ${roll}. ${label}를 되돌렸습니다. ${playerName(nextPlayerAfterUse)} 차례입니다.`),
+    status: status(`시간석 ${roll}! ${undoCount}차례를 되돌렸습니다. ${playerName(nextPlayerAfterUse)} 차례입니다.`),
     ...IDLE_ITEM,
   };
 }
@@ -409,11 +404,13 @@ function handleTimeStone(state, roll) {
 export function gameReducer(state, action) {
   switch (action.type) {
     case 'START_GAME': {
+      const playerCount = action.playerCount || PLAYER_COUNT;
+      const inventories = action.inventories || buildInventories(playerCount);
       return {
         ...initialState,
-        playerCount: PLAYER_COUNT,
+        playerCount,
         gameStarted: true,
-        inventories: buildInventories(),
+        inventories,
         turnHistory: [],
         session: state.session + 1,
         status: status('흑부터 둡니다. 빈 교차점을 고르세요.'),
