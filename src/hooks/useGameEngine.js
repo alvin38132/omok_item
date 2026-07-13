@@ -8,6 +8,7 @@ import { directionFromCells, planHitStone } from '../game/hitStone.js';
 import { SIZE } from '../game/constants.js';
 import { BIG_KNIGHT_OFFSETS, KNIGHT_OFFSETS } from '../game/items.js';
 import { inBounds } from '../game/logic.js';
+import { playSound } from '../game/audio.js';
 
 function isOffsetTarget(first, cell, offsets) {
   return offsets.some(([dx, dy]) => first.x + dx === cell.x && first.y + dy === cell.y);
@@ -75,6 +76,7 @@ export function useGameEngine({
   // Place a normal stone.
   const place = useCallback((cell) => {
     if (!cell || !canAct) return;
+    playSound('place');
     dispatch({ type: 'PLACE', cell, success: true });
   }, [canAct, dispatch]);
 
@@ -125,6 +127,7 @@ export function useGameEngine({
     setTimeRewindAnimation((animation) => {
       if (!animation || animation.id !== animationId) return animation;
       dispatch({ type: 'USE_TIME_STONE', roll: animation.roll });
+      playSound('timeStone');
       return null;
     });
   }, [dispatch]);
@@ -140,6 +143,9 @@ export function useGameEngine({
   const finishItemAnimation = useCallback((animationId) => {
     setItemAnimation((animation) => {
       if (!animation || animation.id !== animationId) return animation;
+      if (animation.type === 'steal_stone') {
+        playSound(animation.success ? 'stealSuccess' : 'stealFailure');
+      }
       return null;
     });
   }, []);
@@ -181,6 +187,7 @@ export function useGameEngine({
           !state.board[cell.y][cell.x]
           && isOffsetTarget(state.itemState.firstCell, cell, KNIGHT_OFFSETS)
         ) {
+          playSound('place');
           playItemAnimation({
             type: 'knight_move',
             player: state.currentPlayer,
@@ -194,6 +201,7 @@ export function useGameEngine({
           !state.board[cell.y][cell.x]
           && isOffsetTarget(state.itemState.firstCell, cell, BIG_KNIGHT_OFFSETS)
         ) {
+          playSound('place');
           playItemAnimation({
             type: 'big_knight_move',
             player: state.currentPlayer,
@@ -206,6 +214,7 @@ export function useGameEngine({
         state.activeItem === 'area_blast'
         && state.board[cell.y][cell.x] === state.currentPlayer
       ) {
+        playSound('explosion');
         playItemAnimation({
           type: 'area_blast',
           player: state.currentPlayer,
