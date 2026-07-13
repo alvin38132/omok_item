@@ -359,45 +359,23 @@ function handleTimeStone(state, roll) {
 
   const inventories = consume(state.inventories, player, 'time_stone');
 
-  if (!roll) {
+  // 2, 4, 6 나오면 턴 다시. 1, 3, 5는 실패
+  const success = roll === 2 || roll === 4 || roll === 6;
+
+  if (!success) {
     return endTurn(
       { ...state, inventories, failedFlash: null },
       state.board,
-      status('시간석 실패. 되돌리지 못했습니다.', 'error'),
+      status(`시간석 ${roll}. 실패했습니다.`, 'error'),
     );
   }
 
-  const undoCount = Math.min(roll, state.turnHistory.length);
-  const nextPlayerAfterUse = nextPlayer(player, state.playerCount);
-
-  if (!undoCount) {
-    return {
-      ...state,
-      inventories,
-      currentPlayer: nextPlayerAfterUse,
-      failedFlash: null,
-      status: status('되돌릴 차례가 없습니다.'),
-      ...IDLE_ITEM,
-    };
-  }
-
-  const targetIndex = state.turnHistory.length - undoCount;
-  const snapshot = state.turnHistory[targetIndex];
-  const label = undoCount === roll
-    ? `${undoCount}차례`
-    : `${roll}차례 중 가능한 ${undoCount}차례`;
-
+  // 2, 4, 6: 턴 다시 (currentPlayer 그대로)
   return {
     ...state,
-    board: snapshot.board,
-    history: state.history.slice(0, snapshot.historyLength),
-    turnHistory: state.turnHistory.slice(0, targetIndex),
     inventories,
-    currentPlayer: nextPlayerAfterUse,
-    gameOver: false,
-    winningCells: [],
     failedFlash: null,
-    status: status(`시간석 ${roll}. ${label}를 되돌렸습니다. ${playerName(nextPlayerAfterUse)} 차례입니다.`),
+    status: status(`시간석 ${roll}! 턴을 다시 합니다.`),
     ...IDLE_ITEM,
   };
 }
@@ -409,11 +387,13 @@ function handleTimeStone(state, roll) {
 export function gameReducer(state, action) {
   switch (action.type) {
     case 'START_GAME': {
+      const playerCount = action.playerCount || PLAYER_COUNT;
+      const inventories = action.inventories || buildInventories(playerCount);
       return {
         ...initialState,
-        playerCount: PLAYER_COUNT,
+        playerCount,
         gameStarted: true,
-        inventories: buildInventories(),
+        inventories,
         turnHistory: [],
         session: state.session + 1,
         status: status('흑부터 둡니다. 빈 교차점을 고르세요.'),

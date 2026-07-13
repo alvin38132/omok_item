@@ -7,9 +7,11 @@ import { GameSession } from './gameSession.js';
 const app = express();
 const httpServer = createServer(app);
 const io = new SocketIOServer(httpServer, {
-  cors: { origin: 'http://localhost:5173', methods: ['GET', 'POST'] },
+  cors: {
+    origin: '*', // 모든 도메인 및 다른 컴퓨터에서의 접속을 허용
+    methods: ['GET', 'POST']
+  }
 });
-
 app.use(cors());
 app.use(express.json());
 
@@ -57,6 +59,54 @@ io.on('connection', (socket) => {
     io.to(sessionId).emit('players_updated', session.getPlayers());
   });
 
+  socket.on('buy_item', ({ sessionId, itemId }, callback) => {
+    const session = sessions.get(sessionId);
+    const playerInfo = playerSessions.get(socket.id);
+    if (!session || !playerInfo) {
+      callback({ error: 'Game not found' });
+      return;
+    }
+
+    const result = session.buyItem(playerInfo.playerNumber, itemId);
+    if (result.error) {
+      callback({ error: result.error });
+      return;
+    }
+
+    callback({
+      ok: true,
+      coins: result.coins,
+      boughtItems: result.boughtItems,
+    });
+
+    // Broadcast inventory update to all players
+    io.to(sessionId).emit('inventory_updated', {
+      playerNumber: playerInfo.playerNumber,
+      coins: result.coins,
+      boughtItems: result.boughtItems,
+    });
+  });
+
+  socket.on('start_game', ({ sessionId }, callback) => {
+    const session = sessions.get(sessionId);
+    if (!session) {
+      callback({ error: 'Game not found' });
+      return;
+    }
+
+    const result = session.startGame();
+    if (result.error) {
+      callback({ error: result.error });
+      return;
+    }
+
+    const state = session.getState();
+    callback({ ok: true });
+
+    // Broadcast game start and initial state to all players
+    io.to(sessionId).emit('state_updated', state);
+  });
+
   socket.on('action', ({ sessionId, action }, callback) => {
     const session = sessions.get(sessionId);
     if (!session) {
@@ -64,7 +114,16 @@ io.on('connection', (socket) => {
       return;
     }
 
+    if (!session.isGameStarted()) {
+      callback({ error: 'Game not started' });
+      return;
+    }
+
     const nextState = session.dispatch(action);
+    if (nextState.error) {
+      callback({ error: nextState.error });
+      return;
+    }
 
     // Broadcast new state to all players in the game
     io.to(sessionId).emit('state_updated', nextState);
