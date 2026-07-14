@@ -18,6 +18,7 @@ export class GameSession {
     this.state = initialState;
     this.players = new Map(); // { playerNumber -> { socketId, name } }
     this.playerInventories = {}; // { playerNumber -> { coins, boughtItems } }
+    this.playerReady = {}; // { playerNumber -> boolean }
     this.gameStarted = false;
     this.nextPlayerNumber = 1;
   }
@@ -29,6 +30,7 @@ export class GameSession {
       coins: INITIAL_COINS,
       boughtItems: new Set(),
     };
+    this.playerReady[playerNumber] = false;
     this.nextPlayerNumber++;
     return playerNumber;
   }
@@ -36,6 +38,21 @@ export class GameSession {
   removePlayer(playerNumber) {
     this.players.delete(playerNumber);
     delete this.playerInventories[playerNumber];
+    delete this.playerReady[playerNumber];
+  }
+
+  setPlayerReady(playerNumber, ready) {
+    if (this.playerReady.hasOwnProperty(playerNumber)) {
+      this.playerReady[playerNumber] = ready;
+    }
+  }
+
+  areAllPlayersReady() {
+    return Object.values(this.playerReady).every((ready) => ready);
+  }
+
+  getReadyStatus() {
+    return this.playerReady;
   }
 
   buyItem(playerNumber, itemId) {

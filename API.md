@@ -48,6 +48,59 @@
 
 ---
 
+### POST /api/purchase - 아이템 구매 결제
+
+SADA Coin 결제를 통해 아이템을 구매합니다. 학생이 자신의 기기에서 승인해야 합니다.
+
+**요청:**
+```json
+{
+  "studentId": "2601",
+  "itemId": "knight_move",
+  "amount": 200
+}
+```
+
+**응답:**
+```json
+{
+  "requestId": 1,
+  "sadaRequestId": 12,
+  "status": "pending",
+  "expiresAt": "2026-07-14T12:36:00"
+}
+```
+
+**파라미터:**
+- `studentId` (string): 학생 학번
+- `itemId` (string): 아이템 ID
+- `amount` (number): 결제 금액
+
+---
+
+### GET /api/purchase/:requestId - 결제 상태 조회
+
+결제 요청의 상태를 조회합니다.
+
+**응답:**
+```json
+{
+  "requestId": 1,
+  "status": "pending",
+  "itemId": "knight_move",
+  "amount": 200,
+  "studentId": "2601"
+}
+```
+
+**상태:**
+- `pending` - 대기 중
+- `approved` - 승인됨
+- `rejected` - 거절됨
+- `expired` - 만료됨
+
+---
+
 ## WebSocket 이벤트
 
 ### 클라이언트 → 서버
@@ -79,6 +132,29 @@ socket.emit('join', { sessionId, name }, (response) => {
 ```json
 {
   "error": "Game not found"
+}
+```
+
+---
+
+#### ready - 준비 완료
+
+게임 시작 준비를 완료했음을 알립니다. 모든 플레이어가 준비되어야 게임을 시작할 수 있습니다.
+
+**발송:**
+```javascript
+socket.emit('ready', { sessionId }, (response) => {
+  // callback
+})
+```
+
+**파라미터:**
+- `sessionId` (string): 게임 세션 ID
+
+**응답 콜백:**
+```json
+{
+  "ok": true
 }
 ```
 
@@ -144,6 +220,13 @@ socket.emit('start_game', { sessionId }, (response) => {
 ```
 
 또는 에러:
+```json
+{
+  "error": "모든 플레이어가 준비되지 않았습니다."
+}
+```
+
+또는:
 ```json
 {
   "error": "Game already started"
@@ -287,6 +370,27 @@ socket.on('players_updated', (players) => {
 
 ---
 
+#### ready_status_updated - 준비 상태 업데이트
+
+플레이어의 준비 상태가 변경되었습니다.
+
+**수신:**
+```javascript
+socket.on('ready_status_updated', (readyStatus) => {
+  // readyStatus: { playerNumber: boolean, ... }
+})
+```
+
+**응답 구조:**
+```json
+{
+  "1": true,
+  "2": false
+}
+```
+
+---
+
 #### inventory_updated - 아이템 구매 업데이트
 
 다른 플레이어가 아이템을 구매했을 때 발생합니다.
@@ -411,6 +515,11 @@ socket.on('inventory_updated', (data) => {
   // 플레이어 아이템 구매 정보 업데이트
 });
 
+socket.on('ready_status_updated', (readyStatus) => {
+  console.log('Ready status:', readyStatus);
+  // 플레이어 준비 상태 업데이트
+});
+
 socket.on('game_over', (data) => {
   console.log('Game over:', data.status.message);
   // 게임 종료 처리
@@ -430,6 +539,15 @@ socket.emit('buy_item', {
   }
   console.log('Remaining coins:', response.coins);
   console.log('Bought items:', response.boughtItems);
+});
+
+// 준비 완료
+socket.emit('ready', { sessionId }, (response) => {
+  if (response.error) {
+    console.error('Ready failed:', response.error);
+    return;
+  }
+  console.log('Ready!');
 });
 
 // 모든 플레이어가 준비 완료되면 게임 시작
@@ -478,8 +596,36 @@ socket.emit('action', {
 
 ---
 
+## 서버 설정
+
+### 환경 변수 (.env)
+
+서버 디렉토리에 `.env` 파일을 생성하고 SADA Coin API Key를 설정하세요:
+
+```
+SADA_API_KEY=your_sada_coin_api_key
+```
+
+`.env.example` 파일을 참고하세요.
+
+### 서버 실행
+
+```bash
+cd server
+npm install
+npm start
+```
+
+개발 모드:
+```bash
+npm run dev
+```
+
+---
+
 ## 배포 환경
 
 프로덕션에서는:
 - `http://11.190.49.96:3001` → `https://your-domain.com`
 - `ws://11.190.49.96:3001` → `wss://your-domain.com`
+- SADA_API_KEY는 환경 변수로 설정

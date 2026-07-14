@@ -7,6 +7,7 @@ import { useMultiplayer } from './hooks/useMultiplayer.js';
 import Board from './components/Board.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import SetupDialog from './components/SetupDialog.jsx';
+import Lobby from './components/Lobby.jsx';
 import TimeStoneConfirmDialog from './components/TimeStoneConfirmDialog.jsx';
 import EndGameCelebration from './components/EndGameCelebration.jsx';
 import { timeStoneRoll } from './game/random.js';
@@ -40,16 +41,16 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [state.failedFlash, engine.clearFlash]);
 
-  const handleCreate = async (playerName) => {
-    const joined = await multiplayer.createGame(playerName);
+  const handleCreate = async (playerName, studentId) => {
+    const joined = await multiplayer.createGame(playerName, studentId);
     if (joined) {
       setShowSetup(false);
       setTimeStoneDialog({ open: false, rolling: false, result: undefined });
     }
   };
 
-  const handleJoin = async (sessionId, playerName) => {
-    const joined = await multiplayer.connectToGame(sessionId, playerName);
+  const handleJoin = async (sessionId, playerName, studentId) => {
+    const joined = await multiplayer.connectToGame(sessionId, playerName, studentId);
     if (joined) {
       setShowSetup(false);
       setTimeStoneDialog({ open: false, rolling: false, result: undefined });
@@ -83,28 +84,37 @@ export default function App() {
     }, 1400);
   };
 
+  // 로비 표시: 연결됨 && 게임 미시작
+  const showLobby = multiplayer.connected && !multiplayer.state.gameStarted;
+  // 게임 표시: 게임 시작됨
+  const showGame = multiplayer.state.gameStarted;
+
   return (
     <>
-      <main className="app">
-        <Board
-          state={state}
-          hitAnimation={engine.hitAnimation}
-          timeRewindAnimation={engine.timeRewindAnimation}
-          itemAnimation={engine.itemAnimation}
-          onCellClick={engine.clickCell}
-          onHitAnimationComplete={engine.finishHitAnimation}
-          onTimeRewindAnimationComplete={engine.finishTimeRewindAnimation}
-          onItemAnimationComplete={engine.finishItemAnimation}
-        />
-        <Sidebar
-          state={state}
-          multiplayer={multiplayer}
-          canAct={canAct}
-          enoughPlayers={enoughPlayers}
-          onActivateItem={handleActivateItem}
-          onNewGame={handleNewGame}
-        />
-      </main>
+      {showLobby && <Lobby multiplayer={multiplayer} />}
+
+      {showGame && (
+        <main className="app">
+          <Board
+            state={state}
+            hitAnimation={engine.hitAnimation}
+            timeRewindAnimation={engine.timeRewindAnimation}
+            itemAnimation={engine.itemAnimation}
+            onCellClick={engine.clickCell}
+            onHitAnimationComplete={engine.finishHitAnimation}
+            onTimeRewindAnimationComplete={engine.finishTimeRewindAnimation}
+            onItemAnimationComplete={engine.finishItemAnimation}
+          />
+          <Sidebar
+            state={state}
+            multiplayer={multiplayer}
+            canAct={canAct}
+            enoughPlayers={enoughPlayers}
+            onActivateItem={handleActivateItem}
+            onNewGame={handleNewGame}
+          />
+        </main>
+      )}
 
       <SetupDialog
         open={showSetup}

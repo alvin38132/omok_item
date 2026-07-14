@@ -23,11 +23,13 @@ function apiErrorMessage(message, fallback) {
 export function useMultiplayer() {
   const [state, setState] = useState(initialState);
   const [playerNumber, setPlayerNumber] = useState(null);
+  const [studentId, setStudentId] = useState(null);
   const [players, setPlayers] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [connecting, setConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
   const [sending, setSending] = useState(false);
+  const [ready, setReady] = useState(false);
   const [buyingItemId, setBuyingItemId] = useState(null);
   const [starting, setStarting] = useState(false);
   const [shopInventories, setShopInventories] = useState({});
@@ -44,19 +46,22 @@ export function useMultiplayer() {
     setConnected(false);
     setConnecting(false);
     setSending(false);
+    setReady(false);
     setBuyingItemId(null);
     setStarting(false);
     setShopInventories({});
     setPlayerNumber(null);
+    setStudentId(null);
     setPlayers([]);
     setSessionId(null);
     setState(initialState);
     setError('');
   }, []);
 
-  const connectToGame = useCallback((gameSessionId, playerName = 'Player') => {
+  const connectToGame = useCallback((gameSessionId, playerName = 'Player', studentIdInput) => {
     const normalizedSessionId = gameSessionId.trim();
     const normalizedName = playerName.trim() || 'Player';
+    const normalizedStudentId = studentIdInput?.trim() || '';
 
     socketRef.current?.disconnect();
     lobbyRequestRef.current = false;
@@ -97,6 +102,7 @@ export function useMultiplayer() {
 
             settled = true;
             setPlayerNumber(response.playerNumber);
+            setStudentId(normalizedStudentId);
             setState(response.state);
             setShopInventories({
               [response.playerNumber]: {
@@ -148,7 +154,7 @@ export function useMultiplayer() {
     });
   }, []);
 
-  const createGame = useCallback(async (playerName = 'Player') => {
+  const createGame = useCallback(async (playerName = 'Player', studentIdInput = '') => {
     setConnecting(true);
     setError('');
 
@@ -161,7 +167,7 @@ export function useMultiplayer() {
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const game = await response.json();
-      return connectToGame(game.sessionId, playerName);
+      return connectToGame(game.sessionId, playerName, studentIdInput);
     } catch {
       setConnecting(false);
       setError('게임을 만들 수 없습니다. 서버 연결을 확인하세요.');
@@ -169,7 +175,12 @@ export function useMultiplayer() {
     }
   }, [connectToGame]);
 
-  const buyItem = useCallback((itemId) => {
+  const buyItem = useCallback((itemId, itemPrice) => {
+    if (!studentId) {
+      setError('학번 입력이 필요합니다.');
+      return Promise.resolve(false);
+    }
+
     const socket = socketRef.current;
     if (!socket?.connected || !sessionId || playerNumber == null) {
       setError('서버와 연결되어 있지 않습니다.');
@@ -182,27 +193,65 @@ export function useMultiplayer() {
     setBuyingItemId(itemId);
 
     return new Promise((resolve) => {
-      socket.emit('buy_item', { sessionId, itemId }, (response) => {
-        lobbyRequestRef.current = false;
-        setBuyingItemId(null);
+      fetch(`${SERVER_URL}/api/purchase`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentId,
+          itemId,
+          amount: itemPrice,
+        }),
+      })
+        .then((res) => res.json())
+        .then((response) => {
+          lobbyRequestRef.current = false;
+          setBuyingItemId(null);
 
+          if (response?.error) {
+            setError(apiErrorMessage(response.error, '아이템을 구매할 수 없습니다.'));
+            resolve(false);
+            return;
+          }
+
+          // 임시로 로컬에만 표시 (실제로는 학생이 승인 후 업데이트)
+          setShopInventories((current) => ({
+            ...current,
+            [playerNumber]: {
+              coins: (current[playerNumber]?.coins || INITIAL_COINS) - itemPrice,
+              boughtItems: [...(current[playerNumber]?.boughtItems || []), itemId],
+            },
+          }));
+          resolve(Boolean(response?.requestId));
+        })
+        .catch(() => {
+          lobbyRequestRef.current = false;
+          setBuyingItemId(null);
+          setError('결제 요청 실패');
+          resolve(false);
+        });
+    });
+  }, [playerNumber, sessionId, state.gameStarted, studentId]);
+
+  const markReady = useCallback(() => {
+    const socket = socketRef.current;
+    if (!socket?.connected || !sessionId) {
+      setError('서버와 연결되어 있지 않습니다.');
+      return Promise.resolve(false);
+    }
+
+    setError('');
+    return new Promise((resolve) => {
+      socket.emit('ready', { sessionId }, (response) => {
         if (response?.error) {
-          setError(apiErrorMessage(response.error, '아이템을 구매할 수 없습니다.'));
+          setError(apiErrorMessage(response.error, '준비 완료 실패'));
           resolve(false);
           return;
         }
-
-        setShopInventories((current) => ({
-          ...current,
-          [playerNumber]: {
-            coins: response.coins,
-            boughtItems: response.boughtItems || [],
-          },
-        }));
-        resolve(Boolean(response?.ok));
+        setReady(true);
+        resolve(true);
       });
     });
-  }, [playerNumber, sessionId, state.gameStarted]);
+  }, [sessionId]);
 
   const startGame = useCallback(() => {
     const socket = socketRef.current;
@@ -263,11 +312,13 @@ export function useMultiplayer() {
   return {
     state,
     playerNumber,
+    studentId,
     players,
     sessionId,
     connecting,
     connected,
     sending,
+    ready,
     buyingItemId,
     starting,
     shopInventories,
@@ -278,6 +329,7 @@ export function useMultiplayer() {
     createGame,
     connectToGame,
     buyItem,
+    markReady,
     startGame,
     sendAction,
     disconnect,

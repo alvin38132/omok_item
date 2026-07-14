@@ -126,6 +126,7 @@ export default function SetupDialog({
   const [pageIndex, setPageIndex] = useState(TUTORIAL_PAGES.length);
   const [mode, setMode] = useState('create');
   const [playerName, setPlayerName] = useState('');
+  const [studentId, setStudentId] = useState('');
   const [sessionId, setSessionId] = useState('');
   const isLobbyPage = pageIndex === TUTORIAL_PAGES.length;
   const page = TUTORIAL_PAGES[Math.min(pageIndex, TUTORIAL_PAGES.length - 1)];
@@ -145,14 +146,16 @@ export default function SetupDialog({
     if (open) {
       setPageIndex(TUTORIAL_PAGES.length);
       setSessionId('');
+      setStudentId('');
+      setPlayerName('');
     }
   }, [open]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (!isLobbyPage || connecting) return;
-    if (mode === 'create') onCreate(playerName);
-    else onJoin(sessionId, playerName);
+    if (!isLobbyPage || connecting || !studentId) return;
+    if (mode === 'create') onCreate(playerName, studentId);
+    else onJoin(sessionId, playerName, studentId);
   };
 
   const handlePrevious = () => {
@@ -211,6 +214,16 @@ export default function SetupDialog({
                 placeholder="이름을 입력하세요"
                 autoComplete="nickname"
                 onChange={(event) => setPlayerName(event.target.value)}
+              />
+            </label>
+
+            <label className="setup-field">
+              <span>학 번</span>
+              <input
+                value={studentId}
+                placeholder="예: 2601"
+                inputMode="numeric"
+                onChange={(event) => setStudentId(event.target.value)}
               />
             </label>
 
