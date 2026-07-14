@@ -1,14 +1,14 @@
 import { gameReducer, initialState } from '../src/game/reducer.js';
 import { ITEMS_BY_ID } from '../src/game/items.js';
 
-const INITIAL_COINS = 1000;
+const INITIAL_COINS = 500;
 const ITEM_PRICES = {
-  knight_move: 200,
-  big_knight_move: 250,
-  area_blast: 150,
-  steal_stone: 180,
-  hit_stone: 300,
-  time_stone: 200,
+  knight_move: 100,
+  big_knight_move: 100,
+  area_blast: 100,
+  steal_stone: 100,
+  hit_stone: 100,
+  time_stone: 100,
 };
 
 export class GameSession {
@@ -78,18 +78,21 @@ export class GameSession {
     return { success: true, coins: inv.coins, boughtItems: Array.from(inv.boughtItems) };
   }
 
-  startGame(playerNumber) {
+  startGame(clientInventories) {
     if (this.gameStarted) {
       return { error: 'Game already started' };
     }
     this.gameStarted = true;
 
-    // Build inventories from bought items
-    const inventories = {};
-    for (let p = 1; p <= this.playerCount; p++) {
-      inventories[p] = {};
-      for (const itemId of Object.keys(ITEMS_BY_ID)) {
-        inventories[p][itemId] = this.playerInventories[p]?.boughtItems.has(itemId) || false;
+    // Use client inventories if provided (for guests), otherwise build from server-tracked bought items
+    let inventories = clientInventories;
+    if (!inventories) {
+      inventories = {};
+      for (let p = 1; p <= this.playerCount; p++) {
+        inventories[p] = {};
+        for (const itemId of Object.keys(ITEMS_BY_ID)) {
+          inventories[p][itemId] = this.playerInventories[p]?.boughtItems.has(itemId) || false;
+        }
       }
     }
 

@@ -29,7 +29,7 @@ let sessionIdCounter = 1;
 let paymentRequestIdCounter = 1;
 
 function generateSessionId() {
-  return `session-${sessionIdCounter++}`;
+  return String(sessionIdCounter++);
 }
 
 // REST API: Create game
@@ -175,7 +175,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('start_game', ({ sessionId }, callback) => {
+  socket.on('start_game', ({ sessionId, inventories }, callback) => {
     const session = sessions.get(sessionId);
     if (!session) {
       callback({ error: 'Game not found' });
@@ -188,7 +188,7 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const result = session.startGame();
+    const result = session.startGame(inventories);
     if (result.error) {
       callback({ error: result.error });
       return;
