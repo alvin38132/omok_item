@@ -34,15 +34,17 @@
 - `sessionId`: 게임 세션 ID (WebSocket 연결 시 사용)
 - `state`: 초기 게임 상태 (대기 상태)
 
-**아이템 가격:**
+**초기 코인:** 500  
+**아이템 가격:** 모두 100원
+
 ```javascript
 {
-  knight_move: 200,
-  big_knight_move: 250,
-  area_blast: 150,
-  steal_stone: 180,
-  hit_stone: 300,
-  time_stone: 200
+  knight_move: 100,
+  big_knight_move: 100,
+  area_blast: 100,
+  steal_stone: 100,
+  hit_stone: 100,
+  time_stone: 100
 }
 ```
 

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { initialState } from '../game/reducer.js';
+import { ITEMS_BY_ID } from '../game/items.js';
 
-const SERVER_URL = 'http://11.190.49.96:3001';
-const INITIAL_COINS = 1000;
+const SERVER_URL = 'http://localhost:3001';
+const INITIAL_COINS = 500;
 
 const API_ERROR_MESSAGES = {
   'Game not found': '게임을 찾을 수 없습니다.',
@@ -24,6 +25,7 @@ export function useMultiplayer() {
   const [state, setState] = useState(initialState);
   const [playerNumber, setPlayerNumber] = useState(null);
   const [studentId, setStudentId] = useState(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [players, setPlayers] = useState([]);
   const [sessionId, setSessionId] = useState(null);
   const [connecting, setConnecting] = useState(false);
@@ -52,13 +54,14 @@ export function useMultiplayer() {
     setShopInventories({});
     setPlayerNumber(null);
     setStudentId(null);
+    setIsGuest(false);
     setPlayers([]);
     setSessionId(null);
     setState(initialState);
     setError('');
   }, []);
 
-  const connectToGame = useCallback((gameSessionId, playerName = 'Player', studentIdInput) => {
+  const connectToGame = useCallback((gameSessionId, playerName = 'Player', studentIdInput, isGuestInput = false) => {
     const normalizedSessionId = gameSessionId.trim();
     const normalizedName = playerName.trim() || 'Player';
     const normalizedStudentId = studentIdInput?.trim() || '';
@@ -93,7 +96,7 @@ export function useMultiplayer() {
       socket.on('connect', () => {
         socket.emit(
           'join',
-          { sessionId: normalizedSessionId, name: normalizedName },
+          { sessionId: normalizedSessionId, name: normalizedName, isGuest: isGuestInput },
           (response) => {
             if (response?.error) {
               fail(apiErrorMessage(response.error, '게임에 참가할 수 없습니다.'));
@@ -103,6 +106,7 @@ export function useMultiplayer() {
             settled = true;
             setPlayerNumber(response.playerNumber);
             setStudentId(normalizedStudentId);
+            setIsGuest(isGuestInput);
             setState(response.state);
             setShopInventories({
               [response.playerNumber]: {
@@ -154,7 +158,7 @@ export function useMultiplayer() {
     });
   }, []);
 
-  const createGame = useCallback(async (playerName = 'Player', studentIdInput = '') => {
+  const createGame = useCallback(async (playerName = 'Player', studentIdInput = '', isGuestInput = false) => {
     setConnecting(true);
     setError('');
 
@@ -167,7 +171,7 @@ export function useMultiplayer() {
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const game = await response.json();
-      return connectToGame(game.sessionId, playerName, studentIdInput);
+      return connectToGame(game.sessionId, playerName, studentIdInput, isGuestInput);
     } catch {
       setConnecting(false);
       setError('게임을 만들 수 없습니다. 서버 연결을 확인하세요.');
@@ -176,7 +180,9 @@ export function useMultiplayer() {
   }, [connectToGame]);
 
   const buyItem = useCallback((itemId, itemPrice) => {
-    if (!studentId) {
+    // 게스트 모드: 학번 불필요
+    // 일반 모드: 학번 필수
+    if (!isGuest && !studentId) {
       setError('학번 입력이 필요합니다.');
       return Promise.resolve(false);
     }
@@ -192,6 +198,33 @@ export function useMultiplayer() {
     lobbyRequestRef.current = true;
     setBuyingItemId(itemId);
 
+    // 게스트 모드: 로컬과 서버 모두에 추가 (결제 없음)
+    if (isGuest) {
+      return new Promise((resolve) => {
+        socket.emit('buy_item', { sessionId, itemId }, (response) => {
+          lobbyRequestRef.current = false;
+          setBuyingItemId(null);
+
+          if (response?.error) {
+            setError(apiErrorMessage(response.error, '아이템을 선택할 수 없습니다.'));
+            resolve(false);
+            return;
+          }
+
+          // 서버 응답으로 인벤토리 업데이트
+          setShopInventories((current) => ({
+            ...current,
+            [playerNumber]: {
+              coins: current[playerNumber]?.coins || INITIAL_COINS,
+              boughtItems: response.boughtItems || [],
+            },
+          }));
+          resolve(true);
+        });
+      });
+    }
+
+    // 일반 모드: 결제 요청
     return new Promise((resolve) => {
       fetch(`${SERVER_URL}/api/purchase`, {
         method: 'POST',
@@ -230,7 +263,7 @@ export function useMultiplayer() {
           resolve(false);
         });
     });
-  }, [playerNumber, sessionId, state.gameStarted, studentId]);
+  }, [playerNumber, sessionId, state.gameStarted, studentId, isGuest]);
 
   const markReady = useCallback(() => {
     const socket = socketRef.current;
@@ -255,7 +288,7 @@ export function useMultiplayer() {
 
   const startGame = useCallback(() => {
     const socket = socketRef.current;
-    if (!socket?.connected || !sessionId) {
+    if (!socket?.connected || !sessionId || playerNumber == null) {
       setError('서버와 연결되어 있지 않습니다.');
       return Promise.resolve(false);
     }
@@ -265,8 +298,24 @@ export function useMultiplayer() {
     lobbyRequestRef.current = true;
     setStarting(true);
 
+    // Build inventories from current shop selections (for both guests and regular players)
+    const inventories = {};
+    for (const [pNum, inventory] of Object.entries(shopInventories)) {
+      const player = parseInt(pNum);
+      inventories[player] = {};
+      // Get all items and set true for bought/selected items
+      for (const itemId of Object.keys(shopInventories[player]?.boughtItems || [])) {
+        // This won't work, need to iterate differently
+      }
+      // Better approach: track items in a Set or map
+      const itemSet = new Set(inventory?.boughtItems || []);
+      for (const itemId of Object.keys(ITEMS_BY_ID)) {
+        inventories[player][itemId] = itemSet.has(itemId);
+      }
+    }
+
     return new Promise((resolve) => {
-      socket.emit('start_game', { sessionId }, (response) => {
+      socket.emit('start_game', { sessionId, inventories }, (response) => {
         lobbyRequestRef.current = false;
         setStarting(false);
 
@@ -278,7 +327,7 @@ export function useMultiplayer() {
         resolve(Boolean(response?.ok));
       });
     });
-  }, [sessionId, state.gameStarted]);
+  }, [sessionId, state.gameStarted, shopInventories, playerNumber]);
 
   const sendAction = useCallback((action) => {
     const socket = socketRef.current;
@@ -313,6 +362,7 @@ export function useMultiplayer() {
     state,
     playerNumber,
     studentId,
+    isGuest,
     players,
     sessionId,
     connecting,

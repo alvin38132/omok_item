@@ -360,21 +360,19 @@ button.compact {
 
 .shop-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 7px;
-  max-height: 235px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
   margin-bottom: 10px;
-  padding-right: 3px;
-  overflow-y: auto;
 }
 
 .shop-item {
-  min-height: 58px;
-  padding: 8px 7px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 7px;
   color: var(--ink);
   background: #fbf8ef;
+  display: flex;
+  flex-direction: column;
 }
 
 .shop-item:hover:not(:disabled) {
@@ -382,11 +380,14 @@ button.compact {
   background: #fffdf7;
 }
 
+.shop-item.bought,
 .shop-item.purchased {
   border-color: rgba(47, 111, 104, 0.32);
-  color: var(--accent);
   background: rgba(47, 111, 104, 0.08);
-  opacity: 1;
+}
+
+.shop-item.bought h4 {
+  color: var(--accent);
 }
 
 .shop-price {
@@ -399,6 +400,60 @@ button.compact {
 
 .shop-item.purchased .shop-price {
   color: var(--accent);
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.item-header h4 {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.item-header .badge {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  background: var(--accent);
+  color: #fffdf7;
+  font-size: 0.62rem;
+  border-radius: 4px;
+}
+
+.item-desc {
+  margin: 0 0 8px;
+  font-size: 0.7rem;
+  color: var(--muted);
+  line-height: 1.3;
+  flex-grow: 1;
+}
+
+.item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.price {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.buy-btn {
+  flex: 1;
+  min-height: auto;
+  padding: 6px 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
 .start-game-btn {
@@ -539,6 +594,31 @@ dialog::backdrop {
 
 .setup-field input::placeholder {
   color: #999187;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 10px 0;
+  font-weight: 600;
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  min-height: auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.checkbox-label input[type="checkbox"]:hover {
+  border-color: var(--accent);
+  background: rgba(47, 111, 104, 0.05);
 }
 
 .connection-error {
@@ -1439,6 +1519,19 @@ dialog::backdrop {
   color: var(--muted);
   font-size: 12px;
   font-style: italic;
+}
+
+.guest-notice {
+  background: rgba(47, 111, 104, 0.15);
+  border-color: var(--accent);
+  text-align: center;
+}
+
+.guest-notice p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .shop-grid {

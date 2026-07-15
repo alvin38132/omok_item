@@ -78,6 +78,21 @@ export class GameSession {
     return { success: true, coins: inv.coins, boughtItems: Array.from(inv.boughtItems) };
   }
 
+  buyItemFree(playerNumber, itemId) {
+    if (!ITEMS_BY_ID[itemId]) {
+      return { error: 'Item not found' };
+    }
+    const inv = this.playerInventories[playerNumber];
+    if (!inv) {
+      return { error: 'Player not found' };
+    }
+    if (inv.boughtItems.has(itemId)) {
+      return { error: 'Already selected this item' };
+    }
+    inv.boughtItems.add(itemId);
+    return { success: true, coins: inv.coins, boughtItems: Array.from(inv.boughtItems) };
+  }
+
   startGame(clientInventories) {
     if (this.gameStarted) {
       return { error: 'Game already started' };

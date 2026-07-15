@@ -128,6 +128,7 @@ export default function SetupDialog({
   const [playerName, setPlayerName] = useState('');
   const [studentId, setStudentId] = useState('');
   const [sessionId, setSessionId] = useState('');
+  const [isGuest, setIsGuest] = useState(false);
   const isLobbyPage = pageIndex === TUTORIAL_PAGES.length;
   const page = TUTORIAL_PAGES[Math.min(pageIndex, TUTORIAL_PAGES.length - 1)];
 
@@ -148,14 +149,18 @@ export default function SetupDialog({
       setSessionId('');
       setStudentId('');
       setPlayerName('');
+      setIsGuest(false);
     }
   }, [open]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (!isLobbyPage || connecting || !studentId) return;
-    if (mode === 'create') onCreate(playerName, studentId);
-    else onJoin(sessionId, playerName, studentId);
+    if (!isLobbyPage || connecting) return;
+    if (!playerName) return;
+    if (!isGuest && !studentId) return;
+
+    if (mode === 'create') onCreate(playerName, isGuest ? null : studentId, isGuest);
+    else onJoin(sessionId, playerName, isGuest ? null : studentId, isGuest);
   };
 
   const handlePrevious = () => {
@@ -217,15 +222,28 @@ export default function SetupDialog({
               />
             </label>
 
-            <label className="setup-field">
-              <span>학 번</span>
-              <input
-                value={studentId}
-                placeholder="예: 2601"
-                inputMode="numeric"
-                onChange={(event) => setStudentId(event.target.value)}
-              />
-            </label>
+            <div className="setup-field">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={isGuest}
+                  onChange={(e) => setIsGuest(e.target.checked)}
+                />
+                <span>게스트 모드 (외부인 - 코인 없이 플레이)</span>
+              </label>
+            </div>
+
+            {!isGuest && (
+              <label className="setup-field">
+                <span>학 번</span>
+                <input
+                  value={studentId}
+                  placeholder="예: 2601"
+                  inputMode="numeric"
+                  onChange={(event) => setStudentId(event.target.value)}
+                />
+              </label>
+            )}
 
             {mode === 'join' && (
               <label className="setup-field">

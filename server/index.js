@@ -110,7 +110,7 @@ app.get('/api/purchase/:requestId', (req, res) => {
 io.on('connection', (socket) => {
   console.log(`[${socket.id}] Connected`);
 
-  socket.on('join', ({ sessionId, name }, callback) => {
+  socket.on('join', ({ sessionId, name, isGuest }, callback) => {
     const session = sessions.get(sessionId);
     if (!session) {
       callback({ error: 'Game not found' });
@@ -118,11 +118,11 @@ io.on('connection', (socket) => {
     }
 
     const playerNumber = session.addPlayer(socket.id, name);
-    playerSessions.set(socket.id, { sessionId, playerNumber });
+    playerSessions.set(socket.id, { sessionId, playerNumber, isGuest: isGuest || false });
     socket.join(sessionId);
 
     console.log(
-      `[${socket.id}] Joined ${sessionId} as Player ${playerNumber}`
+      `[${socket.id}] Joined ${sessionId} as Player ${playerNumber}${isGuest ? ' (Guest)' : ''}`
     );
 
     // Send initial state to the joining player
@@ -155,7 +155,11 @@ io.on('connection', (socket) => {
       return;
     }
 
-    const result = session.buyItem(playerInfo.playerNumber, itemId);
+    // For guests, allow free item selection; for regular players, process payment
+    const result = playerInfo.isGuest
+      ? session.buyItemFree(playerInfo.playerNumber, itemId)
+      : session.buyItem(playerInfo.playerNumber, itemId);
+
     if (result.error) {
       callback({ error: result.error });
       return;

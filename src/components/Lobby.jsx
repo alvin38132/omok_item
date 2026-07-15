@@ -1,12 +1,12 @@
 import { ITEMS_BY_ID } from '../game/items.js';
 
 const ITEM_PRICES = {
-  knight_move: 200,
-  big_knight_move: 250,
-  area_blast: 150,
-  steal_stone: 180,
-  hit_stone: 300,
-  time_stone: 200,
+  knight_move: 100,
+  big_knight_move: 100,
+  area_blast: 100,
+  steal_stone: 100,
+  hit_stone: 100,
+  time_stone: 100,
 };
 
 export default function Lobby({ multiplayer }) {
@@ -55,15 +55,22 @@ export default function Lobby({ multiplayer }) {
         <section className="lobby-section">
           <h3>내 준비 상태</h3>
           <div className="inventory-info">
-            <div className="coins-display">
-              <span className="label">코인:</span>
-              <span className="value">{ownInventory.coins}</span>
-            </div>
+            {!multiplayer.isGuest && (
+              <div className="coins-display">
+                <span className="label">코인:</span>
+                <span className="value">{ownInventory.coins}</span>
+              </div>
+            )}
+            {multiplayer.isGuest && (
+              <div style={{ color: 'var(--muted)', fontSize: '12px', marginBottom: '8px' }}>
+                🎮 게스트 모드
+              </div>
+            )}
             <div className="items-display">
-              <span className="label">구매한 아이템:</span>
+              <span className="label">{multiplayer.isGuest ? '선택한 아이템' : '구매한 아이템'}:</span>
               <div className="bought-items">
                 {ownInventory.boughtItems.length === 0 ? (
-                  <span className="empty">아직 구매하지 않음</span>
+                  <span className="empty">아직 선택하지 않음</span>
                 ) : (
                   ownInventory.boughtItems.map((itemId) => (
                     <span key={itemId} className="bought-item">
@@ -78,34 +85,37 @@ export default function Lobby({ multiplayer }) {
 
         {/* 아이템 가게 */}
         <section className="lobby-section">
-          <h3>아이템 구매</h3>
+          <h3>{multiplayer.isGuest ? '아이템 선택 (무료)' : '아이템 구매'}</h3>
           <div className="shop-grid">
             {Object.entries(ITEMS_BY_ID).map(([itemId, item]) => {
               const isBought = ownInventory.boughtItems.includes(itemId);
               const price = ITEM_PRICES[itemId];
-              const canAfford = ownInventory.coins >= price;
+              const canAfford = multiplayer.isGuest || ownInventory.coins >= price;
 
               return (
                 <div key={itemId} className={`shop-item ${isBought ? 'bought' : ''}`}>
                   <div className="item-header">
                     <h4>{item.name}</h4>
-                    {isBought && <span className="badge">구매함</span>}
+                    {isBought && <span className="badge">선택함</span>}
                   </div>
                   <p className="item-desc">{item.desc}</p>
                   <div className="item-footer">
-                    <span className="price">{price} 코인</span>
+                    {!multiplayer.isGuest && <span className="price">{price} 코인</span>}
+                    {multiplayer.isGuest && <span className="price">무료</span>}
                     <button
                       className="buy-btn"
                       onClick={() => handleBuyItem(itemId)}
                       disabled={isBought || !canAfford || multiplayer.buyingItemId === itemId}
                     >
                       {isBought
-                        ? '구매함'
+                        ? '선택함'
                         : !canAfford
                           ? '부족'
                           : multiplayer.buyingItemId === itemId
                             ? '진행중...'
-                            : '구매'}
+                            : multiplayer.isGuest
+                              ? '선택'
+                              : '구매'}
                     </button>
                   </div>
                 </div>

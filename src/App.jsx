@@ -41,16 +41,16 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [state.failedFlash, engine.clearFlash]);
 
-  const handleCreate = async (playerName, studentId) => {
-    const joined = await multiplayer.createGame(playerName, studentId);
+  const handleCreate = async (playerName, studentId, isGuest) => {
+    const joined = await multiplayer.createGame(playerName, studentId, isGuest);
     if (joined) {
       setShowSetup(false);
       setTimeStoneDialog({ open: false, rolling: false, result: undefined });
     }
   };
 
-  const handleJoin = async (sessionId, playerName, studentId) => {
-    const joined = await multiplayer.connectToGame(sessionId, playerName, studentId);
+  const handleJoin = async (sessionId, playerName, studentId, isGuest) => {
+    const joined = await multiplayer.connectToGame(sessionId, playerName, studentId, isGuest);
     if (joined) {
       setShowSetup(false);
       setTimeStoneDialog({ open: false, rolling: false, result: undefined });
