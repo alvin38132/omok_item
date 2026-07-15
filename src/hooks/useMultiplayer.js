@@ -237,24 +237,43 @@ export function useMultiplayer() {
       })
         .then((res) => res.json())
         .then((response) => {
-          lobbyRequestRef.current = false;
-          setBuyingItemId(null);
-
           if (response?.error) {
+            lobbyRequestRef.current = false;
+            setBuyingItemId(null);
             setError(apiErrorMessage(response.error, '아이템을 구매할 수 없습니다.'));
             resolve(false);
             return;
           }
 
-          // 임시로 로컬에만 표시 (실제로는 학생이 승인 후 업데이트)
-          setShopInventories((current) => ({
-            ...current,
-            [playerNumber]: {
-              coins: (current[playerNumber]?.coins || INITIAL_COINS) - itemPrice,
-              boughtItems: [...(current[playerNumber]?.boughtItems || []), itemId],
-            },
-          }));
-          resolve(Boolean(response?.requestId));
+          // 로컬 인벤토리 업데이트
+          setShopInventories((current) => {
+            const updated = {
+              ...current,
+              [playerNumber]: {
+                coins: (current[playerNumber]?.coins || INITIAL_COINS) - itemPrice,
+                boughtItems: [...(current[playerNumber]?.boughtItems || []), itemId],
+              },
+            };
+
+            // 서버로도 전송 (다른 플레이어와 동기화)
+            if (socket?.connected) {
+              socket.emit('buy_item', { sessionId, itemId }, (serverResponse) => {
+                lobbyRequestRef.current = false;
+                setBuyingItemId(null);
+
+                if (!serverResponse?.error) {
+                  resolve(Boolean(response?.requestId));
+                } else {
+                  resolve(false);
+                }
+              });
+            } else {
+              lobbyRequestRef.current = false;
+              setBuyingItemId(null);
+              resolve(Boolean(response?.requestId));
+            }
+            return updated;
+          });
         })
         .catch(() => {
           lobbyRequestRef.current = false;

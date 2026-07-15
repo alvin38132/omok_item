@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const SADA_API_URL = 'https://coin.sada.ai.kr/api';
+const SADA_API_URL = 'https://api.sada.ai.kr/api/v1';
 
 export class SadaCoinClient {
   constructor(apiKey) {
@@ -8,7 +8,7 @@ export class SadaCoinClient {
     this.client = axios.create({
       baseURL: SADA_API_URL,
       headers: {
-        'X-API-Key': apiKey,
+        'X-API-KEY': apiKey,
       },
     });
   }
@@ -33,14 +33,17 @@ export class SadaCoinClient {
 
   async createPaymentRequest(studentId, amount, title, type = 'student_to_club') {
     try {
-      const response = await this.client.post('/payment-requests', {
+      const payload = {
         student_id: studentId,
         amount,
         title,
         type,
-      });
+      };
+      console.log('Creating payment request with:', payload);
+      const response = await this.client.post('/payment-requests', payload);
       return response.data;
     } catch (error) {
+      console.error('Payment request error details:', error.response?.data || error.message);
       throw new Error(`Failed to create payment request: ${error.message}`);
     }
   }

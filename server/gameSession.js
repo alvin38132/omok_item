@@ -99,15 +99,12 @@ export class GameSession {
     }
     this.gameStarted = true;
 
-    // Use client inventories if provided (for guests), otherwise build from server-tracked bought items
-    let inventories = clientInventories;
-    if (!inventories) {
-      inventories = {};
-      for (let p = 1; p <= this.playerCount; p++) {
-        inventories[p] = {};
-        for (const itemId of Object.keys(ITEMS_BY_ID)) {
-          inventories[p][itemId] = this.playerInventories[p]?.boughtItems.has(itemId) || false;
-        }
+    // Always use server-tracked bought items (both regular and guest players send buy_item events)
+    const inventories = {};
+    for (let p = 1; p <= this.playerCount; p++) {
+      inventories[p] = {};
+      for (const itemId of Object.keys(ITEMS_BY_ID)) {
+        inventories[p][itemId] = this.playerInventories[p]?.boughtItems.has(itemId) || false;
       }
     }
 
